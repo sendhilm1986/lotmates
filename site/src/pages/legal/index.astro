@@ -1,0 +1,8 @@
+---
+import Shell from '../../layouts/Shell.astro';
+import { POLICIES } from '../../app/services/legal.js';
+---
+<Shell title="Policies · Lotmates" description="Terms, privacy, refunds, delivery, grievance and partner policies for Lotmates.">
+  <h1>Policies</h1>
+  <ul>{POLICIES.map((p) => <li><a href={`/legal/${p.slug}`}>{p.title}</a>: {p.summary}</li>)}</ul>
+</Shell>

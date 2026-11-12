@@ -1,0 +1,2 @@
+<?php
+// Retired diagnostics.

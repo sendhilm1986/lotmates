@@ -1,0 +1,19 @@
+---
+import Shell from '../../layouts/Shell.astro';
+import { POLICIES } from '../../app/services/legal.js';
+export function getStaticPaths() {
+  return POLICIES.map((p) => ({ params: { slug: p.slug }, props: { p } }));
+}
+const { p } = Astro.props;
+---
+<Shell title={`${p.title} · Lotmates`} description={p.summary}>
+  <h1>{p.title}</h1>
+  <p>{p.summary}</p>
+  {p.inShort?.length > 0 && <ul>{p.inShort.map((t) => <li>{t}</li>)}</ul>}
+  {p.sections.map((s) => (
+    <section>
+      <h2>{s.heading}</h2>
+      {s.body.map((b) => (typeof b === 'string' ? <p>{b}</p> : <ul>{(b.list || []).map((li) => <li>{li}</li>)}</ul>))}
+    </section>
+  ))}
+</Shell>

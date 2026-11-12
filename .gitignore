@@ -1,0 +1,10 @@
+# secrets and local-only files: never commit
+.env
+.env.*
+up.env
+# build output and tooling
+node_modules/
+dist/
+.astro/
+_backup/
+.DS_Store

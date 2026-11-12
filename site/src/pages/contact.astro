@@ -1,0 +1,8 @@
+---
+import Shell from '../layouts/Shell.astro';
+import { COMPANY } from '../app/services/legal.js';
+---
+<Shell title="Contact · Lotmates" description="Get in touch with Lotmates for help with a booking, a refund or a complaint.">
+  <h1>Contact Lotmates</h1>
+  <p>Email <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a> for help with a booking, a refund or a complaint.</p>
+</Shell>
