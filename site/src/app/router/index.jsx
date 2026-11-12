@@ -23,9 +23,18 @@ import { PAGES } from './manifest.generated';
 const pageLoaders = import.meta.glob('/src/app/pages/**/*.jsx');
 const NotFoundPage = lazy(() => import('@/pages/NotFound'));
 
-// Warm the page chunks once the browser is idle, so the first click renders from cache.
+// Warm page chunks once the browser is idle, so the first click renders from cache. A browser with no sign-in
+// history only warms public pages; admin, vendor and payout screens load when someone who can open them signs in.
+const publicFiles = new Set(PAGES.filter((p) => p.route?.layout === 'public').map((p) => p.file));
 if (typeof window !== 'undefined') {
-  const warm = () => { for (const load of Object.values(pageLoaders)) { try { load().catch(() => {}); } catch { /* ignore */ } } };
+  const warm = () => {
+    let known = false;
+    try { known = Boolean(window.localStorage.getItem('lotmates.lastRole')); } catch { /* treat as a first visit */ }
+    for (const [file, load] of Object.entries(pageLoaders)) {
+      if (!known && !publicFiles.has(file)) continue;
+      try { load().catch(() => {}); } catch { /* ignore */ }
+    }
+  };
   if ('requestIdleCallback' in window) window.requestIdleCallback(warm, { timeout: 8000 });
   else setTimeout(warm, 4000);
 }

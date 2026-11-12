@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import { cn } from '@/lib/utils';
 import ApperIcon from '@/components/ApperIcon';
 import MarkLogo from '@/components/MarkLogo';
@@ -9,8 +8,8 @@ import MarkLogo from '@/components/MarkLogo';
 /**
  * A short guided tour for first-time visitors. Each step points at an element marked with
  * data-tour="…"; steps whose element isn't on screen (say, a desktop-only link on a phone)
- * are left out. Seen or skipped once, it doesn't come back on its own, but the footer link
- * "Take the tour" replays it.
+ * are left out. It never opens on its own: the home page link and the footer link
+ * "Take the tour" start it.
  */
 
 const KEY = 'lotmates.tour';
@@ -74,11 +73,9 @@ function findTarget(key) {
 const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /**
- * Put this on a page: it starts the tour automatically for a first visit (signed-out people
- * only), and whenever startTour(id) is called.
+ * Put this on a page: it starts the tour when startTour(id) is called, or the address has ?tour=1.
  */
 export function TourLauncher({ id }) {
-  const user = useSelector((s) => s.user.user);
   const location = useLocation();
   const [steps, setSteps] = useState(null);
 
@@ -111,11 +108,9 @@ export function TourLauncher({ id }) {
       const t = setTimeout(begin, 700);
       return () => clearTimeout(t);
     }
-    const seen = readSeen();
-    if (user || seen.skipped || seen[id]) return undefined;
-    const t = setTimeout(begin, 1400);
-    return () => clearTimeout(t);
-  }, [id, user, begin, location.search]);
+    // No automatic start: a modal over the headline costs first-time visitors the price ladder. It opens on request.
+    return undefined;
+  }, [id, begin, location.search]);
 
   if (!steps) return null;
   return (

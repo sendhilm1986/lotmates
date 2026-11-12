@@ -53,10 +53,13 @@ export function useOwnerLayoutData() {
     return matched?.redirectAfterAuth ?? GENERIC_AUTH?.redirectAfterAuth ?? '/';
   }, [user?.profile]);
 
-  const navItems = useMemo(
-    () => discoveredNavItems.filter((item) => !item.profiles || item.profiles.includes(user?.profile)),
-    [user?.profile]
-  );
+  const navItems = useMemo(() => {
+    const items = discoveredNavItems.filter((item) => !item.profiles || item.profiles.includes(user?.profile));
+    // Neighbours land in their bookings; a Deals tab keeps booking one tap away.
+    return user?.profile === 'Customer_c'
+      ? [{ icon: 'Tag', label: 'Deals', order: 5, to: '/deals', path: '/deals', href: '/deals' }, ...items]
+      : items;
+  }, [user?.profile]);
 
   const navGroups = useMemo(() => {
     const groups = [];

@@ -7,7 +7,7 @@ import ApperIcon from '@/components/ApperIcon';
 import DotMeter, { meterLabels } from '@/components/DotMeter';
 import DealCard from '@/components/DealCard';
 import LocalityMenu from '@/components/LocalityMenu';
-import { TourLauncher } from '@/components/GuidedTour';
+import { TourLauncher, startTour } from '@/components/GuidedTour';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -188,13 +188,16 @@ export default function Home() {
             Your locality books together. Every neighbour who joins brings the price down for everyone.
           </p>
           {/* Quiet on purpose: the headline and the street lead. The header carries the locality on desktop. */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
-            <LocalityMenu className="h-11 bg-card md:hidden" data-tour="locality" />
-            <Link to="/deals" className="inline-flex h-11 items-center gap-1.5 text-base font-semibold text-primary underline-offset-4 hover:underline">
-              See all deals
+          <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
+            <Link to="/deals" className="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-7 text-base font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              See live deals
               <ApperIcon name="ArrowRight" size={18} />
             </Link>
+            <LocalityMenu className="h-11 bg-card md:hidden" data-tour="locality" />
           </div>
+          <button type="button" onClick={() => startTour('home')} className="mt-2 inline-flex min-h-11 items-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+            New here? Take the 30-second tour
+          </button>
         </div>
 
         <div className="mx-auto mt-10 max-w-3xl px-5 md:mt-12 md:px-8">
@@ -219,6 +222,11 @@ export default function Home() {
                   {inr(price)}{' '}
                   <span className="block text-base font-semibold text-muted-foreground sm:inline md:text-xl">each, with {n} {n === 1 ? 'home' : 'homes'} booked</span>
                 </p>
+                {tier1Price > 0 && backNow > 0 && (
+                  <p className="text-base text-muted-foreground md:text-lg">
+                    You pay {inr(tier1Price)} today. <strong className="font-semibold text-primary">{inr(backNow)} comes back</strong> when the deal closes.
+                  </p>
+                )}
               </div>
               <div data-tour="hero-deal" className="mt-4">
                 <DotMeter deal={meterDeal} size="xl" labels={false} className="text-left" />

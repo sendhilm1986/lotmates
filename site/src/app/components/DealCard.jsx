@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import ApperIcon from '@/components/ApperIcon';
 import DealProgress from '@/components/DealProgress';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,6 @@ const STATUS_CHIP = {
 };
 
 export default function DealCard({ record, to, className }) {
-  const navigate = useNavigate();
   const st = dealState(record);
   const href = to ?? `/deals/${record.Id}`;
   const where = record.community_c?.Name ?? record.locality_c?.Name ?? '';
@@ -21,13 +20,9 @@ export default function DealCard({ record, to, className }) {
   const mine = useMyBookings().some((b) => String(b.deal_c?.Id) === String(record.Id));
 
   return (
-    <div
-      role="link"
-      tabIndex={0}
-      onClick={() => navigate(href)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') navigate(href);
-      }}
+    <Link
+      to={href}
+      aria-label={`${record.Name}, ${inr(st.current?.price)}${record.unit_c ? ` ${record.unit_c}` : ''}${open ? `, ${timeLeft(record.deadline_c)}` : ''}`}
       className={cn(
         'group flex min-w-0 cursor-pointer flex-col rounded-[24px] bg-card p-3 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,
@@ -101,6 +96,6 @@ export default function DealCard({ record, to, className }) {
           </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

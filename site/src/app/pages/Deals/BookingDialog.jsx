@@ -324,7 +324,7 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
         </div>
       )}
       <div className="flex justify-between gap-4">
-        <dt className="text-muted-foreground">Pay now, {plural(qty)}</dt>
+        <dt className="text-muted-foreground">Pay now · {qty} × {unitWord}</dt>
         <dd className="tabular-nums text-foreground">{inr(total)}</dd>
       </div>
       <div className="flex justify-between gap-4">

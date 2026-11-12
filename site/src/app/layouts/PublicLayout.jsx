@@ -137,10 +137,10 @@ export default function PublicLayout() {
               {FOOTER_COLUMNS.map((col) => (
                 <nav key={col.title} aria-label={col.title} className={col.title === 'Lotmates' ? 'col-span-2 md:col-span-1' : ''}>
                   <p className="font-medium text-foreground">{col.title}</p>
-                  <ul className={cn('mt-3 gap-y-2.5', col.title === 'Lotmates' ? 'flex flex-wrap gap-x-5 md:block md:space-y-2.5' : 'space-y-2.5')}>
+                  <ul className={cn('mt-2 gap-y-0', col.title === 'Lotmates' ? 'flex flex-wrap gap-x-5 md:block md:space-y-0' : 'space-y-0')}>
                     {col.links.map(([to, label]) => (
                       <li key={to}>
-                        <Link to={to} className="hover:text-foreground">{label}</Link>
+                        <Link to={to} className="inline-block py-1.5 hover:text-foreground">{label}</Link>
                       </li>
                     ))}
                   </ul>

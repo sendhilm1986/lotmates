@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BOOKING_STATUS, BOOKING_STYLES, REFUND_STATUS, REFUND_STYLES, DEAL_FIELDS, dealState, inr, isOpen, dealSchedule, dealFulfilment, dealSlots, scheduleLine } from '@/services/dealRules';
+import { BOOKING_STATUS, BOOKING_STYLES, REFUND_STATUS, REFUND_STYLES, DEAL_FIELDS, dealState, inr, isOpen, dealSchedule, dealFulfilment, dealSlots, scheduleLine, shareMessage } from '@/services/dealRules';
 import { JOB_FIELDS, REVIEW_FIELDS, COMPLAINT_FIELDS, COMPLAINT_STYLES, userIdOf, sameId, unwrapList } from '@/services/records';
 import { isGatewayPayment, toPaise } from '@/services/razorpay';
 import { forgetMyBookings } from '@/services/myBookings';
@@ -84,6 +84,27 @@ export default function BookingDetail() {
   const { data: complaints, run: refetchComplaints } = useFetch(() => {
     return sdk.table('complaints_c').select(COMPLAINT_FIELDS).where(eq('booking_c', id)).fetch().then(unwrapList);
   }, [id]);
+
+  useEffect(() => {
+    if (!booking || !deal || booking.status_c !== 'Booked' || !sameId(booking.Owner?.Id, userIdOf(user))) return;
+    const s = dealState(deal);
+    const key = `lotmates.seenTier.${booking.Id}`;
+    let seen = 1;
+    try {
+      seen = Number(window.localStorage.getItem(key) || 1);
+    } catch {
+      /* first time on this device */
+    }
+    if (s.reached > seen) {
+      const back = Math.max(0, (Number(booking.unitPrice_c || 0) - (s.current?.price ?? 0)) * Number(booking.homes_c || 1));
+      toast.success(`The price dropped to ${inr(s.current?.price)}.${back > 0 ? ` ${inr(back)} is coming back to you.` : ''}`);
+    }
+    try {
+      window.localStorage.setItem(key, String(Math.max(seen, s.reached)));
+    } catch {
+      /* not remembered, so it may show again */
+    }
+  }, [booking, deal]);
 
   const back = (
     <Button variant="ghost" size="sm" asChild className="-ml-2">
@@ -247,7 +268,7 @@ export default function BookingDetail() {
         <p className="text-sm text-muted-foreground">Booking {booking.Name}</p>
         <h1 className="font-heading text-2xl font-extrabold leading-tight tracking-tight text-foreground md:text-3xl">{booking.deal_c?.Name}</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <StatusBadge value={booking.status_c} styles={BOOKING_STYLES} />
+          <StatusBadge value={booking.status_c} styles={BOOKING_STYLES} label={isAdmin ? undefined : booking.status_c === 'Failed' ? "Deal didn't go ahead" : booking.status_c === 'Cancelled' ? 'You cancelled' : undefined} />
           {booking.refundStatus_c !== 'None' && (
             <StatusBadge
               value={`Refund ${booking.refundStatus_c.toLowerCase()}`}
@@ -272,7 +293,7 @@ export default function BookingDetail() {
             </Button>
           )}
           {canCancel && (mine || isAdmin) && (
-            <Button variant="outline" onClick={() => setCancelOpen(true)}>
+            <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setCancelOpen(true)}>
               <ApperIcon name="XCircle" size={16} />
               Cancel booking
             </Button>
@@ -330,6 +351,21 @@ export default function BookingDetail() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Share the deal: the next tier puts money back in your pocket.</p>
+              )}
+              {mine && (st.next || (!st.unlocked && st.toMin > 0)) && (
+                <div className="rounded-2xl bg-primary p-4 text-primary-foreground">
+                  <p className="font-heading text-lg font-bold leading-snug">
+                    {!st.unlocked && st.toMin > 0
+                      ? `${st.toMin} more ${st.toMin === 1 ? 'neighbour' : 'neighbours'} and this goes ahead`
+                      : `${st.toNext} more ${st.toNext === 1 ? 'neighbour' : 'neighbours'} = ${inr(Math.max(0, (Number(st.current?.price || 0) - Number(st.next?.price || 0)) * Number(booking.homes_c || 1)))} more back to you`}
+                  </p>
+                  <Button asChild variant="secondary" className="mt-3 h-12 w-full rounded-full">
+                    <a href={`https://wa.me/?text=${encodeURIComponent(shareMessage(deal, st, `${window.location.origin}/deals/${deal.Id}`))}`} target="_blank" rel="noreferrer">
+                      <ApperIcon name="MessageCircle" size={18} />
+                      Ask your building group on WhatsApp
+                    </a>
+                  </Button>
+                </div>
               )}
             </section>
           )}

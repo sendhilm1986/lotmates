@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { sdk } from '@/services/sdk';
 import { setUser } from '@/store/userSlice';
@@ -32,11 +32,15 @@ export default function AuthPage({ mode }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { profile: profileParam } = useParams();
+  const { search } = useLocation();
 
   // Signing up is for neighbours only; other roles are invited.
   const roleKey = mode === 'signup' ? 'customer' : (ROLES.find((r) => r.key === profileParam)?.key ?? readLastRole() ?? 'customer');
   const role = ROLES.find((r) => r.key === roleKey) ?? ROLES[0];
   const profileCfg = AUTH_PROFILES.find((p) => p.key === role.key);
+  // Someone who came from a deal is a buyer: skip the four-role chooser, and carry the deal through sign-in and sign-up.
+  const redirectTo = new URLSearchParams(search).get('redirect');
+  const buyerIntent = role.key === 'customer' && Boolean(redirectTo && redirectTo.startsWith('/deals/'));
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -90,11 +94,11 @@ export default function AuthPage({ mode }) {
             {mode === 'login' ? 'Sign in to Lotmates' : 'Join your neighbours'}
           </h1>
           <p className="mt-2 text-base text-muted-foreground">
-            {mode === 'login' ? 'Choose who you are signing in as.' : 'Create a neighbour account to book deals in your locality.'}
+            {mode === 'login' ? (buyerIntent ? 'Sign in to book your place.' : 'Choose who you are signing in as.') : 'Create a neighbour account to book deals in your locality.'}
           </p>
         </div>
 
-        {mode === 'login' && (
+        {mode === 'login' && !buyerIntent && (
           <div role="tablist" aria-label="Sign in as" className="mt-7 grid grid-cols-4 gap-1 rounded-2xl bg-muted p-1">
             {ROLES.map((r) => {
               const active = r.key === role.key;
@@ -199,12 +203,12 @@ export default function AuthPage({ mode }) {
           {mode === 'signup' ? (
             <>
               Already have an account?{' '}
-              <Link to="/customer/login" className="font-medium text-primary hover:underline">Sign in</Link>
+              <Link to={`/customer/login${search}`} className="font-medium text-primary hover:underline">Sign in</Link>
             </>
           ) : role.canSignup ? (
             <>
               New to Lotmates?{' '}
-              <Link to="/customer/signup" className="font-medium text-primary hover:underline">Create a neighbour account</Link>
+              <Link to={`/customer/signup${search}`} className="font-medium text-primary hover:underline">Create a neighbour account</Link>
             </>
           ) : role.invite ? (
             <>
@@ -215,6 +219,12 @@ export default function AuthPage({ mode }) {
             'Team accounts are invited by an admin.'
           )}
         </p>
+        {buyerIntent && (
+          <p className="mt-3 text-center text-sm text-muted-foreground">
+            Vendor, ambassador or team member?{' '}
+            <Link to={`/vendor/login${search}`} className="font-medium text-primary hover:underline">Choose your role</Link>
+          </p>
+        )}
       </div>
     </div>
   );

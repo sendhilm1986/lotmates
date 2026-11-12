@@ -14,7 +14,7 @@ import RatingStars from '@/components/RatingStars';
 import { DetailSkeleton } from '@/components/PageSkeleton';
 import { Button } from '@/components/ui/button';
 import BookingDialog from './BookingDialog';
-import { DEAL_FIELDS, DEAL_STYLES, dealState, inr, isOpen, categoryLabel, timeLeft, allowsRepeat, dealSchedule, dealFulfilment } from '@/services/dealRules';
+import { DEAL_FIELDS, DEAL_STYLES, dealState, inr, isOpen, categoryLabel, timeLeft, allowsRepeat, dealSchedule, dealFulfilment, shareMessage } from '@/services/dealRules';
 import { useMyBookings, forgetMyBookings } from '@/services/myBookings';
 import DealGallery from '@/components/DealGallery';
 import { REVIEW_FIELDS, unwrapList } from '@/services/records';
@@ -104,7 +104,7 @@ export default function DealPage() {
   const isAdmin = profile === 'Admin_c';
   const where = deal.community_c?.Name ?? `All communities in ${deal.locality_c?.Name ?? 'the locality'}`;
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const shareText = `${deal.Name}: ${st.booked} neighbours booked, price now ${inr(st.current?.price)}. Join before it closes: ${shareUrl}`;
+  const shareText = shareMessage(deal, st, shareUrl);
   const lines = (deal.description_c ?? '').split('\n').filter(Boolean);
   const reviewList = reviews ?? [];
   const avg = reviewList.length
@@ -147,7 +147,11 @@ export default function DealPage() {
   } else if (st.full) {
     cta = { note: 'Every slot in this round is booked.', to: '/deals', label: 'See live deals', variant: 'outline' };
   } else if (!isAuthenticated) {
-    cta = { to: `/customer/login?redirect=${encodeURIComponent(`/deals/${deal.Id}`)}`, label: 'Sign in to book' };
+    cta = {
+      to: `/customer/signup?redirect=${encodeURIComponent(`/deals/${deal.Id}`)}`,
+      label: 'Book my place',
+      signIn: `/customer/login?redirect=${encodeURIComponent(`/deals/${deal.Id}`)}`,
+    };
   } else if (isAdmin) {
     cta = { note: "You're signed in as the Lotmates team.", to: `/admin/deals/${deal.Id}`, label: 'Manage this deal', variant: 'outline' };
   } else if (!['Customer_c', 'Ambassador_c'].includes(profile)) {
@@ -210,14 +214,27 @@ export default function DealPage() {
     )
   ) : null;
 
-  const barNote = open && st.refundPerUnit > 0 ? (
-    <span className="flex flex-col items-start gap-1">
-      <span className="rounded-md bg-highlight px-1.5 py-0.5 font-semibold text-highlight-foreground">{inr(st.refundPerUnit)} back</span>
-      <span className="leading-5">to you at close</span>
+  const barNote = open ? (
+    <span className="flex flex-col items-start gap-0.5">
+      <span className="font-heading text-lg font-bold leading-6 tabular-nums text-foreground">{inr(st.tier1?.price)} today</span>
+      {st.refundPerUnit > 0 ? (
+        <span className="leading-5">
+          <span className="rounded-md bg-highlight px-1.5 py-0.5 font-semibold text-highlight-foreground">{inr(st.refundPerUnit)} back</span> at close
+        </span>
+      ) : (
+        <span className="leading-5">Your refund grows as neighbours join</span>
+      )}
     </span>
   ) : (
     moneyNote
   );
+
+  const signInLine = cta.signIn ? (
+    <p className="text-center text-sm text-muted-foreground">
+      Already on Lotmates?{' '}
+      <Link to={cta.signIn} className="font-medium text-primary hover:underline">Sign in</Link>
+    </p>
+  ) : null;
 
   const priceBlock = (
     <div className="space-y-6">
@@ -394,7 +411,10 @@ export default function DealPage() {
             </Link>
           </section>
 
-          <div className="lg:hidden">{share}</div>
+          <div className="space-y-4 lg:hidden">
+            {signInLine}
+            {share}
+          </div>
         </div>
 
         <aside className="hidden lg:block">
@@ -404,6 +424,7 @@ export default function DealPage() {
             <div className="mt-6 space-y-3">
               {cta.note && <p className="text-center text-sm text-muted-foreground">{cta.note}</p>}
               {ctaButton('w-full')}
+              {signInLine}
               {bookMore}
               {share}
             </div>

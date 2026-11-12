@@ -313,3 +313,14 @@ export function scheduleLine(booking, deal) {
   if (mode !== 'none') return `${delivery ? 'Delivery any day' : 'Any day'}${win ? ` ${win}` : ''}. The vendor confirms the time with you.`;
   return delivery ? `Delivered${win ? ` ${win}` : ''}. The vendor will call before coming.` : `The vendor will call to fix a time${win ? ` ${win}` : ''}.`;
 }
+
+/** The WhatsApp message people send to their building group: says what is needed and what everyone gains. */
+export function shareMessage(deal, st, url) {
+  const closesOn = deal?.deadline_c ? new Date(deal.deadline_c).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+  const ask = !st.unlocked && st.toMin > 0
+    ? `${st.toMin} more ${st.toMin === 1 ? 'neighbour' : 'neighbours'} needed for this to go ahead`
+    : st.next
+      ? `${st.toNext} more and we all pay ${inr(st.next.price)} instead of ${inr(st.current?.price)}`
+      : `Best price reached: ${inr(st.current?.price)}`;
+  return `${deal.Name}: ${st.booked} neighbours are in. ${ask}.${closesOn ? ` Closes ${closesOn}.` : ''} ${url}`;
+}
