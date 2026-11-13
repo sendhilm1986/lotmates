@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
+import { sdk } from '@/services/sdk';
+import { loadCategories } from '@/services/categories';
 import ApperIcon from '@/components/ApperIcon';
 import LookupPicker from '@/components/LookupPicker';
 import PhotoManager from '@/components/PhotoManager';
@@ -164,6 +167,24 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
   const [repeatTouched, setRepeatTouched] = useState(false);
   const [scheduleTouched, setScheduleTouched] = useState(Boolean(initial?.Name));
   // Until the team picks a repeat rule, it follows the category's default.
+  const [suggesting, setSuggesting] = useState(false);
+  const [newCat, setNewCat] = useState('');
+  const [addingCat, setAddingCat] = useState(false);
+  async function suggestCategory() {
+    setAddingCat(true);
+    try {
+      const res = await sdk.categories.suggest(newCat);
+      if (!res.ok) return toast.error(res.error.message);
+      const d = res.value?.data ?? res.value;
+      await loadCategories(true);
+      setCategory(d.key);
+      setSuggesting(false);
+      setNewCat('');
+      toast.success(d.existing ? `${d.label} already exists, picked it for you` : `${d.label} sent to the team for approval. You can carry on with the deal.`);
+    } finally {
+      setAddingCat(false);
+    }
+  }
   const setCategory = (v) =>
     setForm((f) => ({
       ...f,
@@ -201,14 +222,23 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Category">
-            <Select value={form.category_c} onValueChange={setCategory}>
+            <Select value={form.category_c} onValueChange={(v) => (v === '__new' ? setSuggesting(true) : setCategory(v))}>
               <SelectTrigger aria-label="Category"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {[...new Set([...CATEGORY_VALUES, ...(form.category_c ? [form.category_c] : [])])].map((c) => (
                   <SelectItem key={c} value={c}>{categoryLabel(c)}</SelectItem>
                 ))}
+                {vendorMode && <SelectItem value="__new">+ Suggest a new category</SelectItem>}
               </SelectContent>
             </Select>
+            {suggesting && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
+                <Input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="e.g. Home appliances" aria-label="New category name" className="min-w-0 flex-1" />
+                <Button type="button" size="sm" disabled={addingCat || newCat.trim().length < 3} onClick={suggestCategory}>{addingCat ? 'Adding…' : 'Add'}</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSuggesting(false)}>Cancel</Button>
+                <p className="w-full text-xs text-muted-foreground">The team checks the name before it goes live for everyone. Your deal can't open for bookings until they approve it.</p>
+              </div>
+            )}
           </Field>
           {!vendorMode && (
             <Field label="Status" hint="Use the buttons below to send a deal for review. Changing this by hand skips the vendor's confirmation.">

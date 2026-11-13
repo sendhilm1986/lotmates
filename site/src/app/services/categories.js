@@ -19,7 +19,7 @@ export function loadCategories(force = false) {
       if (!r.success || !r.data?.length) return [];
       const before = signature();
       applyCategories(r.data);
-      if (before !== signature()) window.dispatchEvent(new Event(EVENT));
+      if (!force && before !== signature()) window.dispatchEvent(new Event(EVENT));
       return r.data;
     })
     .catch(() => []);

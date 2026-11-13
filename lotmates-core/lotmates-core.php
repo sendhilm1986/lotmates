@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LM_VERSION', '0.7.0');
+define('LM_VERSION', '0.7.1');
 define('LM_DIR', plugin_dir_path(__FILE__));
 // Public site the API serves. Change here if the front end moves.
 define('LM_SITE_URL', 'https://lotmates.in');
@@ -87,6 +87,7 @@ add_action('rest_api_init', function () {
     lm_register_query_routes();
     lm_register_fn_routes();
     lm_register_account_routes();
+    lm_register_category_routes();
     lm_register_media_routes();
     lm_register_invoice_routes();
     lm_register_og_routes();

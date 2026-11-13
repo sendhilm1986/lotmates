@@ -60,7 +60,7 @@ function lm_deal_event($deal_id, $kind, $user, $note = '', $terms = null)
 }
 
 /** What is still missing before a deal can go for review or be opened. */
-function lm_deal_problems($d, $need_deadline = true)
+function lm_deal_problems($d, $need_deadline = true, $live = false)
 {
     $p = [];
     if (trim((string) ($d['Name'] ?? '')) === '') {
@@ -121,6 +121,9 @@ function lm_deal_problems($d, $need_deadline = true)
     }
     if (!empty($d['serviceStart_c']) && !empty($d['serviceEnd_c']) && $d['serviceEnd_c'] < $d['serviceStart_c']) {
         $p[] = 'Service must end after it starts.';
+    }
+    if ($live && lm_category_pending($d['category_c'] ?? '')) {
+        $p[] = 'Approve the new category "' . lm_category_label($d['category_c']) . '" first (Admin > Categories), or move the deal to an existing one.';
     }
     return $p;
 }
@@ -313,7 +316,7 @@ function lm_route_deal_action(WP_REST_Request $r)
             if ($s !== 'Awaiting team') {
                 return lm_err('This deal is not waiting for the team.', 409);
             }
-            if ($problems = lm_deal_problems($deal, $action === 'approve_publish')) {
+            if ($problems = lm_deal_problems($deal, $action === 'approve_publish', $action === 'approve_publish')) {
                 return lm_err($problems[0]);
             }
             $to = $action === 'approve_publish' ? 'Live' : 'Approved';
@@ -323,7 +326,7 @@ function lm_route_deal_action(WP_REST_Request $r)
             if ($s !== 'Approved') {
                 return lm_err('Only an approved deal can be opened for bookings.', 409);
             }
-            if ($problems = lm_deal_problems($deal)) {
+            if ($problems = lm_deal_problems($deal, true, true)) {
                 return lm_err($problems[0]);
             }
             lm_deal_set($id, $user, 'Live', 'published', $note);
@@ -335,7 +338,7 @@ function lm_route_deal_action(WP_REST_Request $r)
             if (empty($deal['vendor_c'])) {
                 return lm_err('Pick the vendor first.');
             }
-            if ($problems = lm_deal_problems($deal)) {
+            if ($problems = lm_deal_problems($deal, true, true)) {
                 return lm_err($problems[0]);
             }
             $extra = ['skipReview_c' => 1];

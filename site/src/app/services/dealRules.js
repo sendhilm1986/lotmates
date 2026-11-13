@@ -255,7 +255,7 @@ export function timeLeft(iso) {
 
 export const isOpen = (deal) => deal?.status_c === 'Live' && new Date(deal?.deadline_c).getTime() > Date.now();
 
-export const categoryLabel = (c) => CATEGORY_META[c]?.label ?? c ?? '—';
+export const categoryLabel = (c) => (CATEGORY_META[c] ? CATEGORY_META[c].label + (CATEGORY_META[c].pending ? ' (awaiting approval)' : '') : c ?? '—');
 export const categoryIcon = (c) => CATEGORY_META[c]?.icon ?? 'Tag';
 
 export function bookingAfterJoin(deal, homes) {
@@ -324,10 +324,10 @@ export function applyCategories(rows) {
   for (const r of rows) {
     const key = r.key_c;
     if (!key) continue;
-    CATEGORY_META[key] = { label: r.Name, icon: r.icon_c || 'Tag' };
+    CATEGORY_META[key] = { label: r.Name, icon: r.icon_c || 'Tag', pending: r.status_c === 'Pending' };
     REPEAT_DEFAULT[key] = Number(r.repeat_c) === 1;
     SCHEDULE_DEFAULTS[key] = [r.fulfilment_c || 'service', r.schedule_c || 'date'];
-    if (r.status_c !== 'Retired') CATEGORY_VALUES.push(key);
+    if (r.status_c !== 'Retired') CATEGORY_VALUES.push(key); // pending ones only reach their suggester and the team
   }
 }
 export const allowsRepeat = (deal) =>

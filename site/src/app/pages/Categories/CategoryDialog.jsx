@@ -161,6 +161,7 @@ export default function CategoryDialog({ open, onOpenChange, record, existing, o
               <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Active">Active, people can pick it</SelectItem>
+                <SelectItem value="Pending">Pending, only its suggester sees it</SelectItem>
                 <SelectItem value="Retired">Retired, hidden from pickers (old deals keep it)</SelectItem>
               </SelectContent>
             </Select>

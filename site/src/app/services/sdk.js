@@ -527,7 +527,15 @@ const dealFlow = {
   act: (dealId, action, { note = '', confirm = false } = {}) => accountCall('/deal/action', { dealId, action, note, confirm }),
 };
 
+const categories = {
+  // A vendor suggests a category; it stays pending until the team approves it. Returns { key, label, existing, status }.
+  suggest: (name) => accountCall('/category/suggest', { name }),
+  // Team only: move everything from one category to another and retire the first.
+  merge: (from, to) => accountCall('/category/merge', { from, to }),
+};
+
 export const sdk = {
+  categories,
   dealFlow,
   availability,
   reviewPhotos,

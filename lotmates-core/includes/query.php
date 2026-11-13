@@ -51,8 +51,11 @@ function lm_grants($table, $user)
     $pub_deal = array_values(array_diff(array_keys(lm_fields('deals_c')), ['commission_c', 'Owner', 'ModifiedOn']));
 
     switch ($table) {
-        case 'cities_c':
         case 'categories_c':
+            // Pending suggestions are seen only by whoever suggested them (and the team).
+            $g[] = ["status_c <> 'Pending'" . ($uid ? " OR Owner = $uid" : ''), array_values(array_diff(array_keys(lm_fields($table)), []))];
+            break;
+        case 'cities_c':
         case 'localities_c':
             $g[] = ['1=1', array_values(array_diff(array_keys(lm_fields($table)), ['Owner']))];
             break;

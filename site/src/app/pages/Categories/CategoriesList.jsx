@@ -7,6 +7,7 @@ import ApperIcon from '@/components/ApperIcon';
 import { ListSkeleton } from '@/components/PageSkeleton';
 import { Button } from '@/components/ui/button';
 import CategoryDialog from './CategoryDialog';
+import MergeDialog from './MergeDialog';
 
 export const route = { path: '/admin/categories', layout: 'owner', access: "profile === 'Admin_c'" };
 export const nav = { icon: 'Tags', label: 'Categories', order: 55, profiles: ['Admin_c'] };
@@ -17,6 +18,7 @@ const SCH = { none: 'Vendor fixes time', date: 'Pick a day', datetime: 'Day and 
 export default function CategoriesList() {
   const [edit, setEdit] = useState(null);
   const [open, setOpen] = useState(false);
+  const [mergeFrom, setMergeFrom] = useState(null);
   const { data, loading, error, run } = useFetch(() =>
     sdk
       .table('categories_c')
@@ -29,7 +31,16 @@ export default function CategoriesList() {
         return r.data;
       })
   );
-  const rows = data ?? [];
+  // Suggestions waiting for approval come first.
+  const rows = [...(data ?? [])].sort((a, b) => (b.status_c === 'Pending') - (a.status_c === 'Pending'));
+
+  async function approve(c) {
+    const res = await sdk.table('categories_c').update({ Id: c.Id, status_c: 'Active' });
+    if (!res.data?.length) return toast.error("Couldn't approve it");
+    toast.success(`${c.Name} approved. Everyone can pick it now.`);
+    await loadCategories(true);
+    run();
+  }
 
   async function move(i, dir) {
     const a = rows[i];
@@ -73,6 +84,7 @@ export default function CategoriesList() {
               <div className="min-w-0 flex-1">
                 <p className="font-heading text-lg font-bold text-foreground">
                   {c.Name}
+                  {c.status_c === 'Pending' && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-medium text-amber-800">Suggested by a vendor</span>}
                   {c.status_c === 'Retired' && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 align-middle text-xs font-medium text-muted-foreground">Retired</span>}
                 </p>
                 <p className="text-sm text-muted-foreground">
@@ -86,12 +98,15 @@ export default function CategoriesList() {
                 <Button variant="ghost" size="icon" aria-label={`Move ${c.Name} down`} disabled={i === rows.length - 1} onClick={() => move(i, 1)}>
                   <ApperIcon name="ChevronDown" size={18} />
                 </Button>
+                {c.status_c === 'Pending' && <Button size="sm" onClick={() => approve(c)}>Approve</Button>}
                 <Button variant="outline" size="sm" onClick={() => { setEdit(c); setOpen(true); }}>Edit</Button>
+                <Button variant="ghost" size="sm" onClick={() => setMergeFrom(c)}>Move into…</Button>
               </div>
             </div>
           ))}
         </div>
       )}
+      <MergeDialog open={!!mergeFrom} onOpenChange={(v) => !v && setMergeFrom(null)} record={mergeFrom} all={rows} onDone={run} />
       <CategoryDialog open={open} onOpenChange={setOpen} record={edit} existing={rows} onSaved={run} />
     </div>
   );
