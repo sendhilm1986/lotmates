@@ -60,6 +60,8 @@ export const DEAL_FIELDS = [
   'vendor_c',
   'locality_c',
   'community_c',
+  'city_c',
+  'pickupAddress_c',
   'description_c',
   'unit_c',
   'regularPrice_c',
@@ -94,6 +96,8 @@ export const BOOKING_FIELDS = [
   'Name',
   'deal_c',
   'community_c',
+  'locality_c',
+  'fulfilment_c',
   'homes_c',
   'unitPrice_c',
   'amountPaid_c',
@@ -271,7 +275,8 @@ export const allowsRepeat = (deal) =>
 
 
 // ---- Delivery and scheduling ----
-// fulfilment: 'service' (done at the home) or 'delivery' (a product brought to the home)
+// fulfilment: 'service' (done at the home), 'delivery' (brought to the home), 'pickup' (collected from the vendor)
+// or 'both' (the buyer chooses delivery or pickup at checkout)
 // schedule: 'none' (vendor calls to fix a time), 'date' (pick a day), 'datetime' (a day and a time slot)
 export const SCHEDULE_DEFAULTS = {
   Health: ['service', 'datetime'],
@@ -284,7 +289,27 @@ export const SCHEDULE_DEFAULTS = {
 export const DEFAULT_SLOTS = 'Morning, 8 am to 12 pm\nAfternoon, 12 pm to 4 pm\nEvening, 4 pm to 8 pm';
 
 export const dealFulfilment = (deal) =>
-  ['service', 'delivery'].includes(deal?.fulfilment_c) ? deal.fulfilment_c : SCHEDULE_DEFAULTS[deal?.category_c]?.[0] ?? 'service';
+  ['service', 'delivery', 'pickup', 'both'].includes(deal?.fulfilment_c) ? deal.fulfilment_c : SCHEDULE_DEFAULTS[deal?.category_c]?.[0] ?? 'service';
+/** What one booking does: 'service', 'delivery' or 'pickup'. A 'both' deal follows the buyer's choice. */
+export const bookingMode = (deal, booking) => {
+  const f = dealFulfilment(deal);
+  return f === 'both' ? (booking?.fulfilment_c === 'pickup' ? 'pickup' : 'delivery') : f;
+};
+
+/** Who can book: one community, one locality (houses and communities alike) or a whole city. */
+export const dealReach = (deal) => (deal?.community_c?.Id ? 'community' : deal?.locality_c?.Id ? 'locality' : deal?.city_c?.Id ? 'city' : 'locality');
+
+/** Short place label for cards and lists. */
+export const dealWhere = (deal) => deal?.community_c?.Name ?? deal?.locality_c?.Name ?? (deal?.city_c?.Name ? `All of ${deal.city_c.Name}` : '');
+
+/** The same in a sentence: who this deal is open to. */
+export const dealOpenTo = (deal) => {
+  const r = dealReach(deal);
+  if (r === 'community') return `Only for ${deal.community_c.Name}`;
+  if (r === 'city') return `Open to everyone in ${deal.city_c?.Name ?? 'the city'}`;
+  return `Open to homes in ${deal?.locality_c?.Name ?? 'the locality'}, houses and communities alike`;
+};
+
 export const dealSchedule = (deal) =>
   ['none', 'date', 'datetime'].includes(deal?.schedule_c) ? deal.schedule_c : SCHEDULE_DEFAULTS[deal?.category_c]?.[1] ?? 'date';
 export const dealSlots = (deal) =>
@@ -303,14 +328,18 @@ export function windowText(deal) {
 }
 
 export function scheduleLine(booking, deal) {
-  const delivery = dealFulfilment(deal) === 'delivery';
+  const fm = bookingMode(deal, booking);
+  const delivery = fm === 'delivery';
+  const pickup = fm === 'pickup';
+  const at = pickup && deal?.pickupAddress_c ? ` at ${deal.pickupAddress_c}` : '';
   const mode = dealSchedule(deal);
   const win = windowText(deal);
   if (mode !== 'none' && booking?.preferredDate_c) {
     const slot = mode === 'datetime' && booking.preferredSlot_c ? `, ${booking.preferredSlot_c.charAt(0).toLowerCase()}${booking.preferredSlot_c.slice(1)}` : '';
-    return `${delivery ? 'Delivery on ' : ''}${dayMonth(booking.preferredDate_c, true)}${slot}`;
+    return `${delivery ? 'Delivery on ' : pickup ? 'Pickup on ' : ''}${dayMonth(booking.preferredDate_c, true)}${slot}${at}`;
   }
-  if (mode !== 'none') return `${delivery ? 'Delivery any day' : 'Any day'}${win ? ` ${win}` : ''}. The vendor confirms the time with you.`;
+  if (mode !== 'none') return `${delivery ? 'Delivery any day' : pickup ? 'Pickup any day' : 'Any day'}${at}${win ? ` ${win}` : ''}. The vendor confirms the time with you.`;
+  if (pickup) return `Pick up${at}${win ? ` ${win}` : ''}. The vendor will call to confirm.`;
   return delivery ? `Delivered${win ? ` ${win}` : ''}. The vendor will call before coming.` : `The vendor will call to fix a time${win ? ` ${win}` : ''}.`;
 }
 

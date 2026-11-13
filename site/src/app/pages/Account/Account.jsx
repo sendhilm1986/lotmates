@@ -192,7 +192,7 @@ function DetailsSection({ me, onSaved }) {
 }
 
 function HomeSection({ me, onSaved }) {
-  const start = { communityId: me.community?.Id ?? '', address: me.address ?? '' };
+  const start = { localityId: me.locality?.Id ?? me.community?.locality?.Id ?? '', communityId: me.community?.Id ?? '', address: me.address ?? '' };
   const [form, setForm] = useState(start);
   const [saving, setSaving] = useState(false);
   const dirty = JSON.stringify(form) !== JSON.stringify(start);
@@ -205,11 +205,20 @@ function HomeSection({ me, onSaved }) {
       .fetch()
       .then((r) => (r.success ? r.data : [])),
   []);
+  const { data: localities } = useFetch(() =>
+    sdk
+      .table('localities_c')
+      .select(['Name', 'city_c', 'status_c'])
+      .orderBy('Name')
+      .fetch()
+      .then((r) => (r.success ? r.data : [])),
+  []);
+  const inLocality = (communities ?? []).filter((c) => !form.localityId || String(c.locality_c?.Id) === String(form.localityId));
 
   async function save(e) {
     e.preventDefault();
     setSaving(true);
-    const r = await sdk.account.update({ communityId: form.communityId || null, address: form.address.trim() });
+    const r = await sdk.account.update({ localityId: form.localityId || null, communityId: form.communityId || null, address: form.address.trim() });
     setSaving(false);
     if (!r.ok) return toast.error(r.error.message);
     toast.success('Home saved. Checkout will fill it in for you.');
@@ -217,26 +226,41 @@ function HomeSection({ me, onSaved }) {
   }
 
   return (
-    <Section id="home" title="Your home" description="Filled in for you at checkout, so booking takes a few taps.">
+    <Section id="home" title="Your home" description="Houses and apartments both work. Filled in for you at checkout, so booking takes a few taps.">
       <form onSubmit={save} className={card}>
         <div className="grid gap-5">
-          <Field id="community" label="Community">
-            <Select value={form.communityId ? String(form.communityId) : ''} onValueChange={(v) => setForm((f) => ({ ...f, communityId: v }))}>
-              <SelectTrigger id="community" className={cn(input, 'h-11! w-full')}>
-                <SelectValue placeholder="Your apartment, enclave or street" />
+          <Field id="locality" label="Locality" hint="Your area, like Kovaipudur or Anna Nagar.">
+            <Select value={form.localityId ? String(form.localityId) : ''} onValueChange={(v) => setForm((f) => ({ ...f, localityId: v, communityId: '' }))}>
+              <SelectTrigger id="locality" className={cn(input, 'h-11! w-full')}>
+                <SelectValue placeholder="Choose your locality" />
               </SelectTrigger>
               <SelectContent>
-                {(communities ?? []).map((c) => (
-                  <SelectItem key={c.Id} value={String(c.Id)}>
-                    {c.Name}
-                    {c.locality_c?.Name ? `, ${c.locality_c.Name}` : ''}
+                {(localities ?? []).map((l) => (
+                  <SelectItem key={l.Id} value={String(l.Id)}>
+                    {l.Name}
+                    {l.city_c?.Name ? `, ${l.city_c.Name}` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field id="address" label="Flat or house number" hint="Block, floor or landmark helps the vendor find you.">
-            <Input id="address" autoComplete="address-line1" placeholder="e.g. B-402, Tower 2" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className={input} />
+          <Field id="community" label="Apartment or community (optional)" hint="Skip this if you live in an individual house.">
+            <Select value={form.communityId ? String(form.communityId) : 'none'} onValueChange={(v) => setForm((f) => ({ ...f, communityId: v === 'none' ? '' : v }))}>
+              <SelectTrigger id="community" className={cn(input, 'h-11! w-full')}>
+                <SelectValue placeholder="I live in an individual house" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">I live in an individual house</SelectItem>
+                {inLocality.map((c) => (
+                  <SelectItem key={c.Id} value={String(c.Id)}>
+                    {c.Name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field id="address" label="Address" hint="House or flat number, street and a landmark help the vendor find you.">
+            <Input id="address" autoComplete="address-line1" placeholder="e.g. 12, Lakshmi Nagar 2nd Street, near the temple" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className={input} />
           </Field>
         </div>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">

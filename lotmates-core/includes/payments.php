@@ -199,17 +199,47 @@ function lm_fn_create_order(WP_REST_Request $r)
     if ($homes < 1 || $homes > $max || $st['remaining'] <= 0) {
         return lm_err($st['remaining'] <= 0 ? 'Every place in this round is booked.' : "Choose between 1 and $max.");
     }
-    $community = lm_row('communities_c', (int) ($p['communityId'] ?? 0));
-    $fits = $community && ($deal['community_c']
-        ? (int) $deal['community_c'] === (int) $community['Id']
-        : (int) $deal['locality_c'] === (int) $community['locality_c']);
-    if (!$fits) {
-        return lm_err('Pick a community this deal covers.');
+    // Who the deal is open to: one community, one locality (houses and communities), or a whole city.
+    // A community is optional unless the deal is for that community alone.
+    $community = !empty($p['communityId']) ? lm_row('communities_c', (int) $p['communityId']) : null;
+    $locality = !empty($p['localityId']) ? lm_row('localities_c', (int) $p['localityId']) : null;
+    if ($deal['community_c']) {
+        $community = lm_row('communities_c', (int) $deal['community_c']);
+        if (!$community || (!empty($p['communityId']) && (int) $p['communityId'] !== (int) $community['Id'])) {
+            return lm_err('This deal is only for ' . ($community['Name'] ?? 'one community') . '.');
+        }
+    }
+    if ($community && !$locality) {
+        $locality = lm_row('localities_c', (int) $community['locality_c']);
+    }
+    if ($community && $locality && (int) $community['locality_c'] !== (int) $locality['Id']) {
+        return lm_err('That community is in a different locality.');
+    }
+    if ($deal['locality_c']) {
+        if (!$locality || (int) $locality['Id'] !== (int) $deal['locality_c']) {
+            return lm_err('This deal is open to homes in the locality it names. Pick that locality.');
+        }
+    } elseif ($deal['city_c']) {
+        if ($locality && (int) $locality['city_c'] !== (int) $deal['city_c']) {
+            return lm_err('This deal is for a different city.');
+        }
+    } elseif (!$locality && !$community) {
+        return lm_err('Pick your locality.');
+    }
+    $mode_f = lm_deal_fulfilment($deal);
+    $choice = sanitize_key((string) ($p['fulfilment'] ?? ''));
+    if ($mode_f === 'both') {
+        if (!in_array($choice, ['delivery', 'pickup'], true)) {
+            return lm_err('Choose delivery or pickup.');
+        }
+        $mode_f = $choice;
     }
     $address = sanitize_text_field((string) ($p['address'] ?? ''));
     $phone = sanitize_text_field((string) ($p['phone'] ?? ''));
-    if ($address === '' || strlen($address) > 300) {
-        return lm_err(lm_deal_fulfilment($deal) === 'delivery' ? 'Add the address to deliver to.' : 'Add the address where the service happens.');
+    if ($mode_f === 'pickup') {
+        $address = $address !== '' ? $address : 'Pickup';
+    } elseif ($address === '' || strlen($address) > 300) {
+        return lm_err($mode_f === 'delivery' ? 'Add the address to deliver to.' : 'Add the address where the service happens.');
     }
     if (!preg_match('/^[+\d][\d\s-]{8,20}$/', $phone)) {
         return lm_err('Add a phone number we can reach.');
@@ -277,7 +307,9 @@ function lm_fn_create_order(WP_REST_Request $r)
         'CreatedOn' => $now,
         'ModifiedOn' => $now,
         'deal_c' => (int) $deal['Id'],
-        'community_c' => (int) $community['Id'],
+        'community_c' => $community ? (int) $community['Id'] : null,
+        'locality_c' => $locality ? (int) $locality['Id'] : null,
+        'fulfilment_c' => in_array($mode_f, ['delivery', 'pickup'], true) ? $mode_f : null,
         'homes_c' => $homes,
         'unitPrice_c' => $unit,
         'amountPaid_c' => $unit * $homes,
@@ -293,7 +325,7 @@ function lm_fn_create_order(WP_REST_Request $r)
         'notes_c' => sanitize_textarea_field(mb_substr((string) ($p['notes'] ?? ''), 0, 1000)) ?: null,
         'vendorUser_c' => $vendor['user_c'] ?? null,
         // An ambassador booking for their own home doesn't earn commission on it.
-        'ambassador_c' => !empty($community['ambassadorUser_c']) && (int) $community['ambassadorUser_c'] !== (int) $user->ID ? $community['ambassadorUser_c'] : null,
+        'ambassador_c' => $community && !empty($community['ambassadorUser_c']) && (int) $community['ambassadorUser_c'] !== (int) $user->ID ? $community['ambassadorUser_c'] : null,
     ]);
     if ($lock) {
         $wpdb->query($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock));

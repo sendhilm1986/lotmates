@@ -109,7 +109,7 @@ export default function Jobs() {
                         <p className="truncate font-medium text-foreground">{job.deal_c?.Name}</p>
                         <p className="truncate text-sm text-muted-foreground">
                           {job.preferredSlot_c ? `${job.preferredSlot_c.split(',')[0]}, ` : ''}
-                          {job.community_c?.Name ?? 'Community not set'}, {job.homes_c ?? 1} {Number(job.homes_c) > 1 ? 'units' : 'unit'}
+                          {job.community_c?.Name ?? job.locality_c?.Name ?? 'Area not set'}, {job.homes_c ?? 1} {Number(job.homes_c) > 1 ? 'units' : 'unit'}
                         </p>
                       </div>
                       <span className="text-right text-xs text-muted-foreground">

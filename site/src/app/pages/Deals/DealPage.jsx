@@ -14,7 +14,7 @@ import RatingStars from '@/components/RatingStars';
 import { DetailSkeleton } from '@/components/PageSkeleton';
 import { Button } from '@/components/ui/button';
 import BookingDialog from './BookingDialog';
-import { DEAL_FIELDS, DEAL_STYLES, dealState, inr, isOpen, categoryLabel, timeLeft, allowsRepeat, dealSchedule, dealFulfilment, shareMessage } from '@/services/dealRules';
+import { DEAL_FIELDS, DEAL_STYLES, dealState, inr, isOpen, categoryLabel, timeLeft, allowsRepeat, dealSchedule, dealFulfilment, dealOpenTo, shareMessage } from '@/services/dealRules';
 import { useMyBookings, forgetMyBookings } from '@/services/myBookings';
 import DealGallery from '@/components/DealGallery';
 import { REVIEW_FIELDS, unwrapList } from '@/services/records';
@@ -102,7 +102,7 @@ export default function DealPage() {
   const st = dealState(deal);
   const open = isOpen(deal);
   const isAdmin = profile === 'Admin_c';
-  const where = deal.community_c?.Name ?? `All communities in ${deal.locality_c?.Name ?? 'the locality'}`;
+  const where = deal.community_c?.Name ?? (deal.locality_c?.Id ? `Everyone in ${deal.locality_c.Name}` : deal.city_c?.Name ? `All of ${deal.city_c.Name}` : 'the locality');
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareText = shareMessage(deal, st, shareUrl);
   const lines = (deal.description_c ?? '').split('\n').filter(Boolean);
@@ -368,14 +368,18 @@ export default function DealPage() {
                 {deal.deadline_c ? formatLocalDate(deal.deadline_c, DATE_FORMATS.SHORT) : '—'}
                 {open ? <span className="block text-xs font-normal text-muted-foreground">{timeLeft(deal.deadline_c)}</span> : null}
               </Detail>
-              <Detail label={dealFulfilment(deal) === 'delivery' ? 'Delivery window' : 'Service window'}>
+              <Detail label="Open to">{dealOpenTo(deal)}</Detail>
+              <Detail label="How you get it">
+                {{ service: 'Done at your home', delivery: 'Delivered to your door', pickup: `Pick up${deal.pickupAddress_c ? ` from ${deal.pickupAddress_c}` : ' from the vendor'}`, both: `Delivery or pickup, you choose${deal.pickupAddress_c ? `. Pickup: ${deal.pickupAddress_c}` : ''}` }[dealFulfilment(deal)]}
+              </Detail>
+              <Detail label={dealFulfilment(deal) === 'service' ? 'Service window' : dealFulfilment(deal) === 'pickup' ? 'Pickup window' : 'Delivery window'}>
                 {deal.serviceStart_c ? formatLocalDate(deal.serviceStart_c, DATE_FORMATS.SHORT) : '—'}
                 {' to '}
                 {deal.serviceEnd_c ? formatLocalDate(deal.serviceEnd_c, DATE_FORMATS.SHORT) : '—'}
               </Detail>
               <Detail label="Timing">
                 {{
-                  none: dealFulfilment(deal) === 'delivery' ? 'The vendor calls before delivering' : 'The vendor calls to fix a time',
+                  none: ['delivery', 'both'].includes(dealFulfilment(deal)) ? 'The vendor calls before delivering' : 'The vendor calls to fix a time',
                   date: 'You pick a day when you book',
                   datetime: 'You pick a day and a time when you book',
                 }[dealSchedule(deal)]}

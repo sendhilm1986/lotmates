@@ -8,7 +8,7 @@ import StatusBadge from '@/components/StatusBadge';
 import RatingStars from '@/components/RatingStars';
 import { ListSkeleton } from '@/components/PageSkeleton';
 import { Button } from '@/components/ui/button';
-import { DEAL_FIELDS, DEAL_STYLES, dealState, inr, timeLeft } from '@/services/dealRules';
+import { DEAL_FIELDS, DEAL_STYLES, dealState, dealWhere, inr, timeLeft } from '@/services/dealRules';
 import { VENDOR_PUBLIC_FIELDS, userIdOf, unwrapList } from '@/services/records';
 
 export const route = { path: '/vendor/deals', layout: 'owner', access: "profile === 'Vendor_c'" };
@@ -97,7 +97,7 @@ export default function VendorDeals() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground">{d.Name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {d.community_c?.Name ?? `All of ${d.locality_c?.Name ?? 'the locality'}`}
+                      {dealWhere(d) || 'the locality'}
                     </p>
                   </div>
                   <div className="flex items-center gap-4 text-sm">

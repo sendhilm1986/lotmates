@@ -229,7 +229,7 @@ export default function DealAdminDetail() {
                 'No vendor yet'
               )}
               {' for '}
-              {deal.community_c?.Name ?? 'the whole locality'}
+              {deal.community_c?.Name ?? (deal.locality_c?.Id ? 'the whole locality' : deal.city_c?.Name ? `all of ${deal.city_c.Name}` : 'the whole locality')}
               {deal.locality_c?.Id && (
                 <>
                   {' in '}
@@ -399,7 +399,7 @@ export default function DealAdminDetail() {
                       <p className="truncate font-medium text-foreground">{b.Owner?.Name ?? 'Neighbour'}</p>
                       <p className="text-[13px] text-muted-foreground">{b.Name}</p>
                     </div>
-                    <p className="text-sm leading-snug text-muted-foreground">{b.community_c?.Name ?? '—'}</p>
+                    <p className="text-sm leading-snug text-muted-foreground">{b.community_c?.Name ?? b.locality_c?.Name ?? '—'}</p>
                     <p className="text-sm tabular-nums text-foreground">
                       {inr(b.amountPaid_c)}
                       <span className="block text-[13px] text-muted-foreground">{b.homes_c} × {inr(b.unitPrice_c)}</span>

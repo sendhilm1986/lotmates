@@ -21,9 +21,20 @@ function lm_me_payload($user)
     $community = null;
     $cid = (int) get_user_meta($uid, 'lm_community', true);
     if ($cid) {
-        $row = $wpdb->get_row($wpdb->prepare('SELECT Id, Name FROM ' . lm_table('communities_c') . ' WHERE Id = %d', $cid), ARRAY_A);
+        $row = $wpdb->get_row($wpdb->prepare('SELECT Id, Name, locality_c FROM ' . lm_table('communities_c') . ' WHERE Id = %d', $cid), ARRAY_A);
         if ($row) {
             $community = ['Id' => (string) $row['Id'], 'Name' => $row['Name']];
+        }
+    }
+    $locality = null;
+    $lid = (int) get_user_meta($uid, 'lm_locality', true);
+    if (!$lid && !empty($row['locality_c'])) {
+        $lid = (int) $row['locality_c']; // Accounts saved before houses were supported: the community's locality.
+    }
+    if ($lid) {
+        $row = $wpdb->get_row($wpdb->prepare('SELECT Id, Name FROM ' . lm_table('localities_c') . ' WHERE Id = %d', $lid), ARRAY_A);
+        if ($row) {
+            $locality = ['Id' => (string) $row['Id'], 'Name' => $row['Name']];
         }
     }
     $out = [
@@ -33,6 +44,7 @@ function lm_me_payload($user)
         'phone' => (string) get_user_meta($uid, 'lm_phone', true),
         'address' => (string) get_user_meta($uid, 'lm_address', true),
         'community' => $community,
+        'locality' => $locality,
         'profile' => $profile,
         'memberSince' => mysql2date('Y-m-d', $user->user_registered),
         'isOwner' => user_can($user, 'manage_options'),
@@ -112,6 +124,13 @@ function lm_register_account_routes()
                 }
                 if (array_key_exists('address', $p)) {
                     update_user_meta($uid, 'lm_address', mb_substr(sanitize_text_field((string) $p['address']), 0, 200));
+                }
+                if (array_key_exists('localityId', $p)) {
+                    $lid = (int) $p['localityId'];
+                    if ($lid && !$wpdb->get_var($wpdb->prepare('SELECT Id FROM ' . lm_table('localities_c') . ' WHERE Id = %d', $lid))) {
+                        return new WP_Error('lm_locality', 'Pick a locality from the list.', ['status' => 400]);
+                    }
+                    update_user_meta($uid, 'lm_locality', $lid ?: '');
                 }
                 if (array_key_exists('communityId', $p)) {
                     $cid = (int) $p['communityId'];

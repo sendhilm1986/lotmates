@@ -5,7 +5,8 @@ if (!defined('ABSPATH')) {
 
 /**
  * How each deal is delivered and scheduled.
- *  fulfilment_c: service (done at the home) or delivery (a product brought to the home)
+ *  fulfilment_c: service (done at the home), delivery (a product brought to the home),
+ *                pickup (collected from the vendor) or both (the buyer chooses delivery or pickup)
  *  schedule_c:   none (the vendor calls to fix a time), date (neighbour picks a day),
  *                datetime (neighbour picks a day and a time slot)
  *  timeSlots_c:  one slot per line, e.g. "Morning, 9 am to 12 pm"
@@ -25,7 +26,17 @@ const LM_DEFAULT_SLOTS = "Morning, 8 am to 12 pm\nAfternoon, 12 pm to 4 pm\nEven
 function lm_deal_fulfilment($deal)
 {
     $f = $deal['fulfilment_c'] ?? null;
-    return in_array($f, ['service', 'delivery'], true) ? $f : (LM_SCHEDULE_DEFAULTS[$deal['category_c'] ?? ''][0] ?? 'service');
+    return in_array($f, ['service', 'delivery', 'pickup', 'both'], true) ? $f : (LM_SCHEDULE_DEFAULTS[$deal['category_c'] ?? ''][0] ?? 'service');
+}
+
+/** What this one booking does: service, delivery or pickup. A 'both' deal follows the buyer's choice (delivery if none). */
+function lm_booking_mode($deal, $booking = null)
+{
+    $f = lm_deal_fulfilment($deal);
+    if ($f !== 'both') {
+        return $f;
+    }
+    return ($booking['fulfilment_c'] ?? '') === 'pickup' ? 'pickup' : 'delivery';
 }
 
 function lm_deal_schedule($deal)
@@ -43,7 +54,10 @@ function lm_deal_slots($deal)
 /** One plain sentence about when the job happens, for emails, invoices and the dashboard. */
 function lm_schedule_line($booking, $deal)
 {
-    $delivery = lm_deal_fulfilment($deal) === 'delivery';
+    $fm = lm_booking_mode($deal, $booking);
+    $delivery = $fm === 'delivery';
+    $pickup = $fm === 'pickup';
+    $where = $pickup && !empty($deal['pickupAddress_c']) ? ' at ' . $deal['pickupAddress_c'] : '';
     $mode = lm_deal_schedule($deal);
     $window = '';
     if (!empty($deal['serviceEnd_c'])) {
@@ -54,10 +68,13 @@ function lm_schedule_line($booking, $deal)
     if ($mode !== 'none' && !empty($booking['preferredDate_c'])) {
         $day = lm_ist_date($booking['preferredDate_c'], 'l j M');
         $slot = $mode === 'datetime' && !empty($booking['preferredSlot_c']) ? ', ' . lcfirst($booking['preferredSlot_c']) : '';
-        return ($delivery ? 'Delivery on ' : 'Preferred: ') . $day . $slot;
+        return ($delivery ? 'Delivery on ' : ($pickup ? 'Pickup on ' : 'Preferred: ')) . $day . $slot . $where;
     }
     if ($mode !== 'none') {
-        return ($delivery ? 'Delivery any day' : 'Any day') . ($window ? ' ' . $window : '') . '. The vendor confirms the time with you.';
+        return ($delivery ? 'Delivery any day' : ($pickup ? 'Pickup any day' : 'Any day')) . $where . ($window ? ' ' . $window : '') . '. The vendor confirms the time with you.';
+    }
+    if ($pickup) {
+        return 'Pick up' . $where . ($window ? ' ' . $window : '') . '. The vendor will call to confirm.';
     }
     return $delivery
         ? 'Delivered' . ($window ? ' ' . $window : '') . '. The vendor will call before coming.'

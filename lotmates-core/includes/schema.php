@@ -39,6 +39,7 @@ function lm_schema()
             'bookedHomes_c' => 'int', 'unlockedTier_c' => 'int', 'round_c' => 'int', 'allowRepeat_c' => 'int', 'gallery_c' => 'json', 'video_c' => 'video',
             'fulfilment_c' => 'pick', 'schedule_c' => 'pick', 'timeSlots_c' => 'long', 'slotCapacity_c' => 'int',
             'vendor_c' => 'lookup:vendors_c', 'locality_c' => 'lookup:localities_c', 'community_c' => 'lookup:communities_c',
+            'city_c' => 'lookup:cities_c', 'pickupAddress_c' => 'text',
         ],
         'bookings_c' => [
             'homes_c' => 'int', 'unitPrice_c' => 'dec', 'amountPaid_c' => 'dec', 'finalPrice_c' => 'dec',
@@ -46,7 +47,7 @@ function lm_schema()
             'orderRef_c' => 'text', 'refundRef_c' => 'text', 'invoiceNo_c' => 'text', 'invoicedOn_c' => 'dt',
             'status_c' => 'pick', 'preferredDate_c' => 'date', 'preferredSlot_c' => 'text', 'address_c' => 'text', 'phone_c' => 'text',
             'notes_c' => 'long', 'jobNote_c' => 'long', 'doneOn_c' => 'date', 'jobPhotos_c' => 'long',
-            'deal_c' => 'lookup:deals_c', 'community_c' => 'lookup:communities_c',
+            'deal_c' => 'lookup:deals_c', 'community_c' => 'lookup:communities_c', 'locality_c' => 'lookup:localities_c', 'fulfilment_c' => 'pick',
             'vendorUser_c' => 'people', 'ambassador_c' => 'people',
         ],
         'reviews_c' => [

@@ -17,6 +17,7 @@ import {
   CATEGORY_VALUES,
   CATEGORY_META,
   dealState,
+  dealWhere,
   getTiers,
   tierForCount,
   inr,
@@ -148,7 +149,7 @@ export default function Home() {
   const tiers = featured ? getTiers(featured) : [];
   const cap = featured ? Number(featured.capacity_c || tiers.at(-1)?.to || 40) : 40;
   const booked = featured ? Number(featured.bookedHomes_c || 0) : 0;
-  const where = featured?.community_c?.Name ?? featured?.locality_c?.Name ?? '';
+  const where = dealWhere(featured);
 
   const shown = useCountUp(booked);
   const [homes, setHomes] = useState(null);

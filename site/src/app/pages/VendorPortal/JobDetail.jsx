@@ -166,8 +166,12 @@ export default function JobDetail() {
               {job.preferredDate_c ? formatLocalDate(job.preferredDate_c, DATE_FORMATS.SHORT) : 'Any day in the window. Call to agree one.'}
             </Row>
             {job.preferredSlot_c && <Row label="Preferred time">{job.preferredSlot_c}</Row>}
-            <Row label="Community">{job.community_c?.Name ?? '—'}</Row>
-            <Row label="Address">{job.address_c ?? '—'}</Row>
+            <Row label="Area">{[job.community_c?.Name, job.locality_c?.Name].filter(Boolean).join(', ') || '—'}</Row>
+            {job.fulfilment_c === 'pickup' ? (
+              <Row label="How">The neighbour collects it from you. No address to visit.</Row>
+            ) : (
+              <Row label={job.fulfilment_c === 'delivery' ? 'Deliver to' : 'Address'}>{job.address_c ?? '—'}</Row>
+            )}
             <Row label="Quantity">{job.homes_c ?? 1}</Row>
             <Row label="Notes from the neighbour">{job.notes_c ?? 'None'}</Row>
           </div>

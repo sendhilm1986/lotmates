@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Lotmates Core
  * Description: Data, roles, sign-in and the private API behind lotmates.in. Keeps everyone except the site owner out of wp-admin.
- * Version: 0.4.7
+ * Version: 0.5.0
  * Author: Clickworthy
  * Requires PHP: 8.0
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LM_VERSION', '0.4.7');
+define('LM_VERSION', '0.5.0');
 define('LM_DIR', plugin_dir_path(__FILE__));
 // Public site the API serves. Change here if the front end moves.
 define('LM_SITE_URL', 'https://lotmates.in');

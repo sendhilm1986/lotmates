@@ -28,7 +28,7 @@ export function loadLocalities() {
   if (!listPromise) {
     listPromise = sdk
       .table('localities_c')
-      .select(['Name', 'status_c', 'pincode_c'])
+      .select(['Name', 'status_c', 'pincode_c', 'city_c'])
       .orderBy('Name')
       .fetch()
       .then((r) => (r.success ? r.data : []))

@@ -30,6 +30,9 @@ export function dealToForm(deal) {
     vendor_c: deal?.vendor_c?.Id ?? deal?.vendor_c ?? null,
     locality_c: deal?.locality_c?.Id ?? deal?.locality_c ?? null,
     community_c: deal?.community_c?.Id ?? deal?.community_c ?? null,
+    city_c: deal?.city_c?.Id ?? deal?.city_c ?? null,
+    reach: deal?.community_c ? 'community' : deal?.city_c && !deal?.locality_c ? 'city' : 'locality',
+    pickupAddress_c: deal?.pickupAddress_c ?? '',
     description_c: deal?.description_c ?? '',
     unit_c: deal?.unit_c ?? 'per home',
     regularPrice_c: str(deal?.regularPrice_c),
@@ -66,8 +69,10 @@ export function formToPayload(form) {
     Name: form.Name.trim(),
     category_c: form.category_c,
     vendor_c: form.vendor_c || null,
-    locality_c: form.locality_c || null,
-    community_c: form.community_c || null,
+    locality_c: form.reach === 'city' ? null : form.locality_c || null,
+    community_c: form.reach === 'community' ? form.community_c || null : null,
+    city_c: form.reach === 'city' ? form.city_c || null : null,
+    pickupAddress_c: ['pickup', 'both'].includes(form.fulfilment_c) ? form.pickupAddress_c.trim() || null : null,
     description_c: form.description_c.trim() || null,
     unit_c: form.unit_c.trim() || 'per home',
     regularPrice_c: numOrNull(form.regularPrice_c),
@@ -101,7 +106,10 @@ export function validateDeal(form) {
   const e = {};
   if (!form.Name.trim()) e.Name = 'Give the deal a title neighbours will recognise';
   if (!form.vendor_c) e.vendor_c = 'Pick the vendor delivering this deal';
-  if (!form.locality_c) e.locality_c = 'Pick the locality';
+  if (form.reach === 'city' && !form.city_c) e.city_c = 'Pick the city';
+  if (form.reach !== 'city' && !form.locality_c) e.locality_c = 'Pick the locality';
+  if (form.reach === 'community' && !form.community_c) e.community_c = 'Pick the community';
+  if (['pickup', 'both'].includes(form.fulfilment_c) && !String(form.pickupAddress_c ?? '').trim()) e.pickupAddress_c = 'Add the address buyers collect from';
   const tiers = [1, 2, 3, 4]
     .map((n) => ({ n, max: numOrNull(form[`tier${n}Max_c`]), price: numOrNull(form[`tier${n}Price_c`]) }))
     .filter((t) => t.max !== null || t.price !== null);
@@ -166,7 +174,7 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
     setScheduleTouched(true);
     setForm((f) => ({ ...f, [k]: v }));
   };
-  const delivery = form.fulfilment_c === 'delivery';
+  const delivery = ['delivery', 'both'].includes(form.fulfilment_c);
 
   function submit(e) {
     e.preventDefault();
@@ -219,33 +227,60 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         </Field>
       </Section>
 
-      <Section title="Where" description="Open to one community, or every community in a locality.">
+      <Section title="Who can book" description="Choose how far this deal reaches.">
+        <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Who can book">
+          {[
+            ['community', 'One community', 'A single apartment complex or gated community.'],
+            ['locality', 'A locality', 'Individual houses and communities in one area, like Kovaipudur.'],
+            ['city', 'A whole city', 'Anyone in the city, like a wet grinder deal across Coimbatore.'],
+          ].map(([v, title, hint]) => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={form.reach === v}
+              onClick={() => setForm((f) => ({ ...f, reach: v }))}
+              className={cn('rounded-xl border p-3.5 text-left transition-colors', form.reach === v ? 'border-primary bg-primary/[0.06] ring-1 ring-primary' : 'border-border hover:border-foreground/30')}
+            >
+              <span className="block text-sm font-medium text-foreground">{title}</span>
+              <span className="mt-0.5 block text-[13px] text-muted-foreground">{hint}</span>
+            </button>
+          ))}
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Locality" error={errors.locality_c}>
-            <LookupPicker
-              table="localities_c"
-              searchField="Name"
-              value={form.locality_c}
-              onChange={(v) => setForm((f) => ({ ...f, locality_c: v, community_c: null }))}
-              placeholder="Choose a locality"
-              aria-label="Locality"
-              clearable
-            />
-          </Field>
-          <Field label="Community (optional)" hint="Leave empty to open the deal to the whole locality.">
-            <LookupPicker
-              key={form.locality_c ?? 'none'}
-              table="communities_c"
-              searchField="Name"
-              fetchParams={form.locality_c ? { filter: eq('locality_c', form.locality_c) } : undefined}
-              value={form.community_c}
-              onChange={set('community_c')}
-              placeholder="Whole locality"
-              aria-label="Community"
-              disabled={!form.locality_c}
-              clearable
-            />
-          </Field>
+          {form.reach === 'city' ? (
+            <Field label="City" error={errors.city_c}>
+              <LookupPicker table="cities_c" searchField="Name" value={form.city_c} onChange={set('city_c')} placeholder="Choose a city" aria-label="City" clearable />
+            </Field>
+          ) : (
+            <Field label="Locality" error={errors.locality_c}>
+              <LookupPicker
+                table="localities_c"
+                searchField="Name"
+                value={form.locality_c}
+                onChange={(v) => setForm((f) => ({ ...f, locality_c: v, community_c: null }))}
+                placeholder="Choose a locality"
+                aria-label="Locality"
+                clearable
+              />
+            </Field>
+          )}
+          {form.reach === 'community' && (
+            <Field label="Community" error={errors.community_c}>
+              <LookupPicker
+                key={form.locality_c ?? 'none'}
+                table="communities_c"
+                searchField="Name"
+                fetchParams={form.locality_c ? { filter: eq('locality_c', form.locality_c) } : undefined}
+                value={form.community_c}
+                onChange={set('community_c')}
+                placeholder="Choose a community"
+                aria-label="Community"
+                disabled={!form.locality_c}
+                clearable
+              />
+            </Field>
+          )}
         </div>
       </Section>
 
@@ -330,6 +365,8 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
             {[
               ['service', 'A service at home', 'Done at the neighbour\'s home, like cleaning or a checkup.'],
               ['delivery', 'A product delivered', 'Brought to the door, like a grinder or solar kit.'],
+              ['pickup', 'Pickup only', 'Buyers collect it from the vendor.'],
+              ['both', 'Delivery or pickup', 'The buyer chooses at checkout.'],
             ].map(([v, title, hint]) => (
               <button
                 key={v}
@@ -345,6 +382,12 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
             ))}
           </div>
         </Field>
+
+        {['pickup', 'both'].includes(form.fulfilment_c) && (
+          <Field label="Pickup address" htmlFor="df-pickup" error={errors.pickupAddress_c} hint="Where buyers collect it. Shown to them on the deal and in their booking.">
+            <Input id="df-pickup" value={form.pickupAddress_c} onChange={set('pickupAddress_c')} placeholder="e.g. Sri Murugan Appliances, 14 Avinashi Road, Coimbatore" />
+          </Field>
+        )}
 
         <Field label="At checkout, neighbours choose">
           <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="At checkout, neighbours choose">

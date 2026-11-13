@@ -356,7 +356,7 @@ export default function BookingsList() {
                   {!isAdmin && b.status_c === 'Booked' && d && <RowProgress deal={d} />}
                 </div>
                 <p className="truncate text-sm text-muted-foreground">
-                  {isAdmin ? b.Owner?.Name ?? '—' : b.community_c?.Name ?? '—'}
+                  {isAdmin ? b.Owner?.Name ?? '—' : b.community_c?.Name ?? b.locality_c?.Name ?? '—'}
                 </p>
                 <p className="text-right text-sm font-semibold tabular-nums text-foreground">{inr(b.amountPaid_c)}</p>
                 <div className="text-sm md:text-right">

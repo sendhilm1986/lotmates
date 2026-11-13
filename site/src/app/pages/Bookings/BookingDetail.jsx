@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BOOKING_STATUS, BOOKING_STYLES, REFUND_STATUS, REFUND_STYLES, DEAL_FIELDS, dealState, inr, isOpen, dealSchedule, dealFulfilment, dealSlots, scheduleLine, shareMessage } from '@/services/dealRules';
+import { BOOKING_STATUS, BOOKING_STYLES, REFUND_STATUS, REFUND_STYLES, DEAL_FIELDS, dealState, inr, isOpen, dealSchedule, dealFulfilment, bookingMode, dealSlots, scheduleLine, shareMessage } from '@/services/dealRules';
 import { JOB_FIELDS, REVIEW_FIELDS, COMPLAINT_FIELDS, COMPLAINT_STYLES, userIdOf, sameId, unwrapList } from '@/services/records';
 import { isGatewayPayment, toPaise } from '@/services/razorpay';
 import { forgetMyBookings } from '@/services/myBookings';
@@ -175,7 +175,7 @@ export default function BookingDetail() {
       note: '',
     },
     {
-      label: deal && dealFulfilment(deal) === 'delivery' ? 'Delivered' : 'Service done',
+      label: deal && bookingMode(deal, booking) === 'delivery' ? 'Delivered' : deal && bookingMode(deal, booking) === 'pickup' ? 'Collected' : 'Service done',
       done: booking.status_c === 'Done',
       note: booking.doneOn_c
         ? formatLocalDate(booking.doneOn_c, DATE_FORMATS.SHORT)
@@ -412,10 +412,14 @@ export default function BookingDetail() {
             <h2 className="font-heading text-lg font-bold text-foreground">Service details</h2>
             <div className="divide-y divide-border">
               {isAdmin && <Row label="Neighbour">{booking.Owner?.Name ?? '—'}</Row>}
-              <Row label="Community">{booking.community_c?.Name ?? '—'}</Row>
+              <Row label="Area">{[booking.community_c?.Name, booking.locality_c?.Name].filter(Boolean).join(', ') || '—'}</Row>
               <Row label="Quantity">{booking.homes_c ?? 1}</Row>
               <Row label="When">{deal ? scheduleLine(booking, deal) : '—'}</Row>
-              <Row label="Address">{booking.address_c ?? '—'}</Row>
+              {deal && bookingMode(deal, booking) === 'pickup' ? (
+                <Row label="Collect from">{deal.pickupAddress_c || 'The vendor will tell you where'}</Row>
+              ) : (
+                <Row label="Address">{booking.address_c ?? '—'}</Row>
+              )}
               <Row label="Phone">{booking.phone_c ?? '—'}</Row>
               <Row label="Notes">{booking.notes_c ?? '—'}</Row>
             </div>
@@ -461,7 +465,7 @@ export default function BookingDetail() {
             {deal && dealSchedule(deal) !== 'none' && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="grid gap-1.5">
-                  <Label htmlFor="ed-date">{dealFulfilment(deal) === 'delivery' ? 'Delivery date' : 'Preferred date'}</Label>
+                  <Label htmlFor="ed-date">{bookingMode(deal, booking) === 'delivery' ? 'Delivery date' : bookingMode(deal, booking) === 'pickup' ? 'Pickup date' : 'Preferred date'}</Label>
                   <Input
                     id="ed-date"
                     type="date"

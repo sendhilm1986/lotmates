@@ -121,7 +121,11 @@ export default function DealsBrowse() {
     if (past) f.push(isIn('status_c', ['Closed', 'Failed']));
     else f.push(eq('status_c', 'Live'));
     if (category !== 'all') f.push(eq('category_c', category));
-    if (localityId !== 'all') f.push(eq('locality_c', localityId));
+    if (localityId !== 'all') {
+      // A locality sees its own deals plus city-wide deals for its city.
+      const cityId = (localities ?? []).find((l) => String(l.Id) === String(localityId))?.city_c?.Id;
+      f.push(cityId ? or(eq('locality_c', localityId), and(isNull('locality_c'), eq('city_c', cityId))) : eq('locality_c', localityId));
+    }
     if (communityId !== 'all') f.push(or(eq('community_c', communityId), isNull('community_c')));
     if (search) f.push(contains('Name', search));
     let q = sdk.table('deals_c').select(DEAL_FIELDS).where(and(...f));
@@ -135,7 +139,7 @@ export default function DealsBrowse() {
         if (!r.success) throw new Error(r.message);
         return { rows: r.data, total: r.total ?? r.data.length };
       });
-  }, [past, category, localityId, communityId, search, sort, page]);
+  }, [past, category, localityId, communityId, search, sort, page, localities]);
 
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;

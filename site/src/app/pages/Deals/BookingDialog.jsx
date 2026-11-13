@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import DateCalendar from '@/components/DateCalendar';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { dealState, inr, tierForCount, dealSchedule, dealFulfilment, dealSlots, scheduleLine } from '@/services/dealRules';
+import { dealState, inr, tierForCount, dealSchedule, dealFulfilment, dealSlots, scheduleLine, dealOpenTo } from '@/services/dealRules';
 import { dealCover } from '@/services/dealMedia';
 import { loadCheckout, openCheckout } from '@/services/razorpay';
 
@@ -18,7 +18,7 @@ const { eq } = window.ApperSDK.CoreSDK;
 
 const BRAND_HEX = '#1F5C45';
 const SAVED = 'lotmates.checkout';
-const emptyForm = { homes: 1, community: '', preferredDate: '', preferredSlot: '', address: '', phone: '', notes: '' };
+const emptyForm = { homes: 1, locality: '', community: '', fulfilment: 'delivery', preferredDate: '', preferredSlot: '', address: '', phone: '', notes: '' };
 
 function readSaved() {
   try {
@@ -66,6 +66,7 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [communities, setCommunities] = useState([]);
+  const [localities, setLocalities] = useState([]);
   const [paying, setPaying] = useState(false);
   // While Razorpay's window is up, our own screen steps aside so nothing sits over it or holds focus.
   const [handoff, setHandoff] = useState(false);
@@ -91,7 +92,10 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
   const dates = useMemo(() => dateOptions(deal?.serviceStart_c, deal?.serviceEnd_c), [deal?.serviceStart_c, deal?.serviceEnd_c]);
   // How this deal is scheduled, and what room is left on each day or time slot.
   const mode = dealSchedule(deal);
-  const delivery = dealFulfilment(deal) === 'delivery';
+  const fMode = dealFulfilment(deal);
+  const chooseHow = fMode === 'both';
+  const pickup = fMode === 'pickup' || (chooseHow && form.fulfilment === 'pickup');
+  const delivery = fMode === 'delivery' || (chooseHow && form.fulfilment !== 'pickup');
   const slots = useMemo(() => dealSlots(deal), [deal]);
   const [avail, setAvail] = useState({ capacity: 0, left: {} });
   const loadAvail = () => {
@@ -110,7 +114,9 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
     setEditContact(!hasSaved);
     setForm({
       ...emptyForm,
+      locality: deal?.locality_c?.Id ? String(deal.locality_c.Id) : saved?.locality ? String(saved.locality) : '',
       community: deal?.community_c?.Id ?? (saved?.community ? String(saved.community) : ''),
+      fulfilment: saved?.fulfilment === 'pickup' ? 'pickup' : 'delivery',
       address: saved?.address ?? '',
       phone: saved?.phone ?? '',
     });
@@ -123,24 +129,44 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
         ...f,
         address: f.address || me.address || '',
         phone: f.phone || me.phone || '',
+        locality: f.locality || (me.locality?.Id ? String(me.locality.Id) : ''),
         community: f.community || (me.community?.Id ? String(me.community.Id) : ''),
       }));
       if ((me.address || saved?.address) && (me.phone || saved?.phone)) setEditContact(false);
     });
+  }, [open, deal]);
+
+  // Which localities this deal serves: its own, or every locality in its city.
+  useEffect(() => {
+    if (!open || !deal) return;
+    if (deal.locality_c?.Id || deal.community_c?.Id) {
+      setLocalities(deal.locality_c?.Id ? [deal.locality_c] : []);
+      return;
+    }
+    let q = sdk.table('localities_c').select(['Name', 'city_c', 'status_c']);
+    if (deal.city_c?.Id) q = q.where(eq('city_c', deal.city_c.Id));
+    q.orderBy('Name').fetch().then((r) => setLocalities(r.success ? r.data : []));
+  }, [open, deal]);
+
+  // Communities are optional: only the ones in the chosen locality, or the one a community deal is for.
+  const localityId = deal?.locality_c?.Id ?? form.locality;
+  useEffect(() => {
+    if (!open || !deal) return;
     let q = sdk.table('communities_c').select(['Name', 'locality_c']);
-    if (deal?.community_c?.Id) q = q.where(eq('Id', deal.community_c.Id));
-    else if (deal?.locality_c?.Id) q = q.where(eq('locality_c', deal.locality_c.Id));
-    else return;
+    if (deal.community_c?.Id) q = q.where(eq('Id', deal.community_c.Id));
+    else if (localityId) q = q.where(eq('locality_c', localityId));
+    else {
+      setCommunities([]);
+      return;
+    }
     q.orderBy('Name')
       .fetch()
       .then((r) => {
         const list = r.success ? r.data : [];
         setCommunities(list);
-        // A saved community from another locality doesn't apply here.
-        setForm((f) => (f.community && !list.some((c) => String(c.Id) === String(f.community)) ? { ...f, community: list.length === 1 ? String(list[0].Id) : '' } : f));
-        if (list.length === 1) setForm((f) => ({ ...f, community: String(list[0].Id) }));
+        if (deal.community_c?.Id && list.length === 1) setForm((f) => ({ ...f, community: String(list[0].Id) }));
       });
-  }, [open, deal]);
+  }, [open, deal, localityId]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target ? e.target.value : e }));
   const qty = Math.min(maxQty, Math.max(1, Number(form.homes) || 1));
@@ -159,7 +185,9 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
   const nextAfter = st.tiers[reachedAfter] ?? null;
   const backAfter = Math.max(0, ((st.tier1?.price ?? 0) - (priceAfter ?? 0)) * qty);
   const bestPrice = st.tiers.at(-1)?.price;
-  const community = communities.find((c) => String(c.Id) === String(form.community));
+  const localityValue = deal?.locality_c?.Id ? String(deal.locality_c.Id) : localities.some((l) => String(l.Id) === String(form.locality)) ? String(form.locality) : '';
+  const communityValue = communities.some((c) => String(c.Id) === String(form.community)) ? String(form.community) : '';
+  const community = communities.find((c) => String(c.Id) === communityValue);
 
   let impact;
   if (st.min > 0 && after < st.min) {
@@ -175,8 +203,8 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
 
   function validate() {
     const e = {};
-    if (!form.community) e.community = 'Pick your community';
-    if (!form.address.trim()) e.address = 'Add the flat or house number';
+    if (!deal?.community_c?.Id && !localityValue && !(pickup && deal?.city_c?.Id)) e.locality = 'Pick your locality';
+    if (!pickup && !form.address.trim()) e.address = delivery ? 'Add the full address to deliver to' : 'Add the flat or house number';
     if (!/^[+\d][\d\s-]{8,}$/.test(form.phone.trim())) e.phone = 'Add a phone number the vendor can call';
     if (form.preferredDate && deal?.serviceStart_c && form.preferredDate < deal.serviceStart_c) e.preferredDate = 'Pick a date inside the service window';
     if (form.preferredDate && deal?.serviceEnd_c && form.preferredDate > deal.serviceEnd_c) e.preferredDate = 'Pick a date inside the service window';
@@ -202,10 +230,12 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
         o = (await createOrder({
           dealId: deal.Id,
           homes: qty,
-          communityId: form.community,
+          communityId: communityValue || null,
+          localityId: localityValue || null,
+          fulfilment: chooseHow ? (pickup ? 'pickup' : 'delivery') : undefined,
           preferredDate: mode === 'none' ? null : form.preferredDate || null,
           preferredSlot: mode === 'datetime' ? form.preferredSlot || null : null,
-          address: form.address.trim(),
+          address: pickup ? '' : form.address.trim(),
           phone: form.phone.trim(),
           notes: form.notes.trim(),
         }))?.data;
@@ -215,14 +245,15 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
         return;
       }
       if (!o?.orderId) return;
-      writeSaved({ address: form.address.trim(), phone: form.phone.trim(), community: form.community });
+      writeSaved({ address: form.address.trim() || readSaved()?.address || '', phone: form.phone.trim(), community: communityValue, locality: localityValue, fulfilment: chooseHow ? (pickup ? 'pickup' : 'delivery') : undefined });
       // First booking: keep these on the profile so every device fills them in next time.
       const me = profileRef.current;
-      if (me && ['Customer_c', 'Ambassador_c'].includes(me.profile) && (!me.address || !me.phone || !me.community)) {
+      if (me && ['Customer_c', 'Ambassador_c'].includes(me.profile) && (!me.address || !me.phone || !me.community || !me.locality)) {
         sdk.account.update({
-          ...(me.address ? {} : { address: form.address.trim() }),
+          ...(me.address || pickup || !form.address.trim() ? {} : { address: form.address.trim() }),
           ...(me.phone ? {} : { phone: form.phone.trim() }),
-          ...(me.community ? {} : { communityId: form.community }),
+          ...(me.locality || !localityValue ? {} : { localityId: localityValue }),
+          ...(me.community || !communityValue ? {} : { communityId: communityValue }),
         });
       }
       const loaded = await loadCheckout();
@@ -319,7 +350,7 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
     <dl className="grid gap-2.5 text-sm">
       {full && whenText && (
         <div className="flex justify-between gap-4">
-          <dt className="text-muted-foreground">{delivery ? 'Delivery' : 'When'}</dt>
+          <dt className="text-muted-foreground">{delivery ? 'Delivery' : pickup ? 'Pickup' : 'When'}</dt>
           <dd className="text-right text-foreground">{whenText}</dd>
         </div>
       )}
@@ -392,7 +423,7 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
                   <div className="min-w-0">
                     <Primitive.Title className="font-heading text-2xl font-bold leading-tight tracking-tight text-foreground md:text-[2rem]">{deal.Name}</Primitive.Title>
                     <p className="mt-1 text-muted-foreground">
-                      {[deal.vendor_c?.Name, deal.community_c?.Name ?? deal.locality_c?.Name].filter(Boolean).join(', ')}
+                      {[deal.vendor_c?.Name, deal.community_c?.Name ?? deal.locality_c?.Name ?? deal.city_c?.Name].filter(Boolean).join(', ')}
                     </p>
                   </div>
                 </div>
@@ -440,15 +471,15 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
               <section className="mt-9 border-t border-border pt-7">
                 {mode === 'none' ? (
                   <>
-                    <h3 className="text-[17px] font-medium text-foreground">{delivery ? 'Delivery' : 'When it happens'}</h3>
+                    <h3 className="text-[17px] font-medium text-foreground">{delivery ? 'Delivery' : pickup ? 'Pickup' : 'When it happens'}</h3>
                     <p className="mt-2 flex items-start gap-2.5 text-[15px] text-foreground">
-                      <ApperIcon name={delivery ? 'Truck' : 'PhoneCall'} size={18} className="mt-0.5 flex-none text-primary" />
+                      <ApperIcon name={delivery ? 'Truck' : pickup ? 'Store' : 'PhoneCall'} size={18} className="mt-0.5 flex-none text-primary" />
                       {scheduleLine({}, deal)}
                     </p>
                   </>
                 ) : (
                   <>
-                    <h3 className="text-[17px] font-medium text-foreground">{delivery ? 'When should it arrive?' : 'When suits you?'}</h3>
+                    <h3 className="text-[17px] font-medium text-foreground">{delivery ? 'When should it arrive?' : pickup ? 'When will you collect it?' : 'When suits you?'}</h3>
                     <p className="text-sm text-muted-foreground">
                       {limited
                         ? `Pick a ${mode === 'datetime' ? 'day and time' : 'day'}. Full ${mode === 'datetime' ? 'times' : 'days'} can't be booked.`
@@ -597,40 +628,103 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
                 )}
               </section>
 
-              {/* Where */}
+              {/* How you get it, and where */}
               <section className="mt-9 border-t border-border pt-7">
-                <h3 className="text-[17px] font-medium text-foreground">{delivery ? 'Where to deliver, and who to call' : 'Where and who to call'}</h3>
-                <p className="text-sm text-muted-foreground">Shared only with the vendor for this job.</p>
-                <div className="mt-4">
-                  {deal.community_c?.Id || communities.length === 1 ? (
+                {chooseHow && (
+                  <div className="mb-7">
+                    <h3 className="text-[17px] font-medium text-foreground">How do you want it?</h3>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Delivery or pickup">
+                      {[
+                        ['delivery', 'Truck', 'Delivered to me', 'Brought to your door.'],
+                        ['pickup', 'Store', 'I will pick it up', deal.pickupAddress_c || 'Collect it from the vendor.'],
+                      ].map(([v, icon, title, hint]) => {
+                        const active = (v === 'pickup') === pickup;
+                        return (
+                          <button
+                            key={v}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => setForm((f) => ({ ...f, fulfilment: v }))}
+                            className={cn(
+                              'flex items-start gap-3 rounded-xl border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                              active ? 'border-primary bg-primary/[0.06] ring-1 ring-primary' : 'border-border bg-card hover:border-foreground/30',
+                            )}
+                          >
+                            <ApperIcon name={icon} size={18} className="mt-0.5 flex-none text-primary" />
+                            <span>
+                              <span className="block text-sm font-medium text-foreground">{title}</span>
+                              <span className="mt-0.5 block text-[13px] text-muted-foreground">{hint}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {pickup && !chooseHow && (
+                  <p className="mb-5 flex items-start gap-2.5 text-[15px] text-foreground">
+                    <ApperIcon name="Store" size={18} className="mt-0.5 flex-none text-primary" />
+                    <span>Pick it up{deal.pickupAddress_c ? ` from ${deal.pickupAddress_c}` : ' from the vendor'}.</span>
+                  </p>
+                )}
+                <h3 className="text-[17px] font-medium text-foreground">{pickup ? 'Who to call' : delivery ? 'Where to deliver, and who to call' : 'Where and who to call'}</h3>
+                <p className="text-sm text-muted-foreground">{pickup ? 'Shared only with the vendor for this order.' : 'Shared only with the vendor for this job.'}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{dealOpenTo(deal)}.</p>
+                <div className="mt-4 grid gap-3">
+                  {deal.community_c?.Id ? (
                     <p className="flex items-center gap-2 text-sm text-foreground">
                       <ApperIcon name="Building2" size={16} className="text-muted-foreground" />
                       {community?.Name ?? deal.community_c?.Name ?? 'Your community'}
                     </p>
                   ) : (
                     <>
-                      <Select value={form.community ? String(form.community) : ''} onValueChange={set('community')}>
-                        <SelectTrigger aria-label="Community" aria-invalid={Boolean(errors.community)} className="h-11 w-full">
-                          <SelectValue placeholder="Your apartment, enclave or street" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {communities.map((c) => (
-                            <SelectItem key={c.Id} value={String(c.Id)}>{c.Name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {fieldError('community')}
+                      {deal.locality_c?.Id ? (
+                        <p className="flex items-center gap-2 text-sm text-foreground">
+                          <ApperIcon name="MapPin" size={16} className="text-muted-foreground" />
+                          {deal.locality_c.Name}
+                        </p>
+                      ) : (
+                        <div>
+                          <Select value={localityValue} onValueChange={(v) => setForm((f) => ({ ...f, locality: v, community: '' }))}>
+                            <SelectTrigger aria-label="Locality" aria-invalid={Boolean(errors.locality)} className="h-11 w-full">
+                              <SelectValue placeholder={pickup ? 'Your locality (optional)' : 'Your locality, e.g. Kovaipudur'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {localities.map((l) => (
+                                <SelectItem key={l.Id} value={String(l.Id)}>{l.Name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {fieldError('locality')}
+                        </div>
+                      )}
+                      {!pickup && communities.length > 0 && (
+                        <Select value={communityValue || 'none'} onValueChange={(v) => setForm((f) => ({ ...f, community: v === 'none' ? '' : v }))}>
+                          <SelectTrigger aria-label="Apartment or community (optional)" className="h-11 w-full">
+                            <SelectValue placeholder="I live in an individual house" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">I live in an individual house</SelectItem>
+                            {communities.map((c) => (
+                              <SelectItem key={c.Id} value={String(c.Id)}>{c.Name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </>
                   )}
                 </div>
 
                 {editContact ? (
                   <div className="mt-3 grid gap-3">
-                    <div>
-                      <label htmlFor="bk-address" className="sr-only">Flat or house number</label>
-                      <Input id="bk-address" autoComplete="address-line1" aria-invalid={Boolean(errors.address)} value={form.address} onChange={set('address')} placeholder="Flat or house number, block" className="h-11" />
-                      {fieldError('address')}
-                    </div>
+                    {!pickup && (
+                      <div>
+                        <label htmlFor="bk-address" className="sr-only">Address</label>
+                        <Input id="bk-address" autoComplete="address-line1" aria-invalid={Boolean(errors.address)} value={form.address} onChange={set('address')} placeholder={delivery ? 'House or flat number, street, landmark' : 'House or flat number, street'} className="h-11" />
+                        {fieldError('address')}
+                      </div>
+                    )}
                     <div>
                       <label htmlFor="bk-phone" className="sr-only">Phone</label>
                       <Input id="bk-phone" type="tel" inputMode="tel" autoComplete="tel" aria-invalid={Boolean(errors.phone)} value={form.phone} onChange={set('phone')} placeholder="Phone, e.g. 98765 43210" className="h-11" />
@@ -640,8 +734,8 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
                 ) : (
                   <div className="mt-3 flex items-start justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
                     <div className="min-w-0 text-sm">
-                      <p className="truncate text-foreground">{form.address}</p>
-                      <p className="text-muted-foreground">{form.phone}</p>
+                      {!pickup && <p className="truncate text-foreground">{form.address}</p>}
+                      <p className={pickup ? 'text-foreground' : 'text-muted-foreground'}>{form.phone}</p>
                     </div>
                     <button type="button" onClick={() => setEditContact(true)} className="flex-none text-sm font-medium text-primary hover:underline">
                       Change

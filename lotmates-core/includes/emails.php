@@ -501,6 +501,7 @@ function lm_email_ctx_deal($deal)
     $vendor = $deal['vendor_c'] ? lm_row('vendors_c', $deal['vendor_c']) : null;
     $community = $deal['community_c'] ? lm_row('communities_c', $deal['community_c']) : null;
     $locality = $deal['locality_c'] ? lm_row('localities_c', $deal['locality_c']) : null;
+    $city = !$locality && !empty($deal['city_c']) ? lm_row('cities_c', $deal['city_c']) : null;
     return [
         'deal_name' => $deal['Name'],
         'deal_link' => LM_SITE_URL . '/deals/' . $deal['Id'],
@@ -513,8 +514,8 @@ function lm_email_ctx_deal($deal)
         'more_needed' => $next ? max(1, (int) $next['from'] - (int) $st['booked']) : 0,
         'booked_count' => (int) $st['booked'],
         'minimum' => (int) ($deal['minHomes_c'] ?? 0),
-        'community' => $community['Name'] ?? ($locality['Name'] ?? ''),
-        'locality' => $locality['Name'] ?? '',
+        'community' => $community['Name'] ?? ($locality['Name'] ?? ($city['Name'] ?? '')),
+        'locality' => $locality['Name'] ?? ($city['Name'] ?? ''),
         'vendor_name' => $vendor['Name'] ?? 'The vendor',
         'closes_on' => lm_email_date($deal['deadline_c']),
         'jobs_link' => LM_SITE_URL . '/vendor',

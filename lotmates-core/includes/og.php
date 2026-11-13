@@ -53,6 +53,9 @@ function lm_og_facts($deal)
     if (!$where && $deal['locality_c']) {
         $where = lm_row('localities_c', $deal['locality_c'])['Name'] ?? null;
     }
+    if (!$where && !empty($deal['city_c'])) {
+        $where = lm_row('cities_c', $deal['city_c'])['Name'] ?? null;
+    }
     if ($deal['status_c'] === 'Live') {
         if ($min && $booked < $min) {
             $line = sprintf('%d neighbours in. %d more to go ahead.', $booked, $min - $booked);

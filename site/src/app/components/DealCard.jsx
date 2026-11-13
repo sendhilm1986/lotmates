@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import ApperIcon from '@/components/ApperIcon';
 import DealProgress from '@/components/DealProgress';
 import { cn } from '@/lib/utils';
-import { dealState, inr, categoryLabel, timeLeft, isOpen } from '@/services/dealRules';
+import { dealState, dealWhere, inr, categoryLabel, timeLeft, isOpen } from '@/services/dealRules';
 import { dealCover } from '@/services/dealMedia';
 import { useMyBookings } from '@/services/myBookings';
 
@@ -15,7 +15,7 @@ const STATUS_CHIP = {
 export default function DealCard({ record, to, className }) {
   const st = dealState(record);
   const href = to ?? `/deals/${record.Id}`;
-  const where = record.community_c?.Name ?? record.locality_c?.Name ?? '';
+  const where = dealWhere(record);
   const open = isOpen(record);
   const mine = useMyBookings().some((b) => String(b.deal_c?.Id) === String(record.Id));
 

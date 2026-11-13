@@ -9,7 +9,7 @@ import { ListSkeleton } from '@/components/PageSkeleton';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DEAL_FIELDS, dealState, inr, timeLeft } from '@/services/dealRules';
+import { DEAL_FIELDS, dealState, dealWhere, inr, timeLeft } from '@/services/dealRules';
 
 export const route = { path: '/admin', layout: 'owner', access: "profile === 'Admin_c'" };
 export const nav = { icon: 'LayoutDashboard', label: 'Today', order: 10, profiles: ['Admin_c'] };
@@ -285,7 +285,7 @@ export default function Dashboard() {
                     >
                       <div className="col-span-2 min-w-0 md:col-span-1">
                         <p className="truncate font-medium text-foreground">{d.Name}</p>
-                        <p className="truncate text-sm text-muted-foreground">{d.community_c?.Name ?? d.locality_c?.Name ?? 'Whole locality'}</p>
+                        <p className="truncate text-sm text-muted-foreground">{dealWhere(d) || 'Whole locality'}</p>
                       </div>
                       <div className="col-span-2 min-w-0 md:col-span-1">
                         <div className="relative h-2 rounded-full bg-muted">
