@@ -9,7 +9,29 @@ export const CATEGORY_META = {
   AC: { label: 'AC care', icon: 'Wind' },
 };
 
-export const DEAL_STATUS = ['Draft', 'Live', 'Closed', 'Failed'];
+export const DEAL_STATUS = ['Draft', 'Awaiting vendor', 'Awaiting team', 'Changes requested', 'Approved', 'Live', 'Closed', 'Failed'];
+// Shown to people instead of the stored word.
+export const DEAL_STATUS_LABEL = {
+  'Awaiting vendor': 'Waiting for vendor',
+  'Awaiting team': 'Waiting for the team',
+  'Changes requested': 'Changes requested',
+  Approved: 'Approved, not live yet',
+};
+export const dealStatusLabel = (s) => DEAL_STATUS_LABEL[s] ?? s;
+// What each step of the review looks like on the timeline.
+export const DEAL_EVENT_LABEL = {
+  created: 'Deal started',
+  submitted: 'Sent to the team for review',
+  withdrawn: 'Withdrawn by the vendor',
+  sent_to_vendor: 'Sent to the vendor for confirmation',
+  recalled: 'Taken back from the vendor',
+  changes_requested: 'Changes requested',
+  accepted: 'Confirmed by the vendor',
+  approved: 'Approved by the team',
+  published: 'Opened for bookings',
+  published_direct: 'Published by the team without vendor review',
+  terms_changed: 'Terms changed after confirmation',
+};
 export const BOOKING_STATUS = ['Booked', 'Confirmed', 'Failed', 'Done', 'Cancelled'];
 export const REFUND_STATUS = ['None', 'Due', 'Paid'];
 export const PAYMENT_STATUS = ['Pending', 'Paid', 'Refunded'];
@@ -21,6 +43,10 @@ export const COMMUNITY_STATUS = ['Active', 'Onboarding'];
 
 export const DEAL_STYLES = {
   Draft: 'bg-muted text-muted-foreground border-border',
+  'Awaiting vendor': 'bg-warning-muted text-foreground border-warning-border',
+  'Awaiting team': 'bg-warning-muted text-foreground border-warning-border',
+  'Changes requested': 'bg-muted text-foreground border-border',
+  Approved: 'bg-success/10 text-success border-success/30',
   Live: 'bg-primary/10 text-primary border-primary/25',
   Closed: 'bg-success/10 text-success border-success/30',
   Failed: 'bg-destructive/10 text-destructive border-destructive/25',
@@ -62,6 +88,13 @@ export const DEAL_FIELDS = [
   'community_c',
   'city_c',
   'pickupAddress_c',
+  'origin_c',
+  'reviewNote_c',
+  'agreedBy_c',
+  'agreedOn_c',
+  'approvedBy_c',
+  'approvedOn_c',
+  'skipReview_c',
   'description_c',
   'unit_c',
   'regularPrice_c',

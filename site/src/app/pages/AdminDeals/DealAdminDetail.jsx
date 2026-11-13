@@ -10,6 +10,7 @@ import { formatLocalDate, DATE_FORMATS } from '@/utils/date';
 import ApperIcon from '@/components/ApperIcon';
 import StatusBadge from '@/components/StatusBadge';
 import DealProgress from '@/components/DealProgress';
+import DealReviewPanel from '@/components/DealReviewPanel';
 import { DetailSkeleton, ListSkeleton } from '@/components/PageSkeleton';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ import {
   dealState,
   inr,
   planClose,
+  dealStatusLabel,
   categoryLabel,
   timeLeft,
 } from '@/services/dealRules';
@@ -218,7 +220,7 @@ export default function DealAdminDetail() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <StatusBadge value={deal.status_c} />
+              <StatusBadge value={deal.status_c} label={dealStatusLabel(deal.status_c)} />
               <span className="text-sm text-muted-foreground">{categoryLabel(deal.category_c)}, round {deal.round_c ?? 1}</span>
             </div>
             <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight text-foreground md:text-[2.25rem]">{deal.Name}</h1>
@@ -245,12 +247,6 @@ export default function DealAdminDetail() {
                 Edit
               </Link>
             </Button>
-            {deal.status_c === 'Draft' && (
-              <Button onClick={publish} disabled={busy === 'publish'} className="h-11 rounded-full px-5">
-                {busy === 'publish' ? <ApperIcon name="LoaderCircle" size={16} className="animate-spin" /> : <ApperIcon name="Send" size={16} />}
-                {busy === 'publish' ? 'Publishing…' : 'Publish'}
-              </Button>
-            )}
             {deal.status_c === 'Live' && (
               <Button onClick={() => setCloseOpen(true)} className="h-11 rounded-full px-5">
                 <ApperIcon name="Lock" size={16} />
@@ -305,6 +301,8 @@ export default function DealAdminDetail() {
           </div>
         </div>
       </div>
+
+      <DealReviewPanel deal={deal} role="admin" onChanged={run} showTerms={['Awaiting team'].includes(deal.status_c)} />
 
       {dueRows.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] bg-highlight/20 px-5 py-4">

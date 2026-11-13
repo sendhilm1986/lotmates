@@ -102,10 +102,10 @@ export function formToPayload(form) {
   };
 }
 
-export function validateDeal(form) {
+export function validateDeal(form, mode = 'admin') {
   const e = {};
   if (!form.Name.trim()) e.Name = 'Give the deal a title neighbours will recognise';
-  if (!form.vendor_c) e.vendor_c = 'Pick the vendor delivering this deal';
+  if (mode === 'admin' && !form.vendor_c) e.vendor_c = 'Pick the vendor delivering this deal';
   if (form.reach === 'city' && !form.city_c) e.city_c = 'Pick the city';
   if (form.reach !== 'city' && !form.locality_c) e.locality_c = 'Pick the locality';
   if (form.reach === 'community' && !form.community_c) e.community_c = 'Pick the community';
@@ -156,7 +156,8 @@ function Section({ title, description, children }) {
   );
 }
 
-export default function DealForm({ initial, saving, submitLabel, onSubmit, onCancel }) {
+export default function DealForm({ initial, saving, submitLabel, onSubmit, onCancel, mode = 'admin', actions }) {
+  const vendorMode = mode === 'vendor';
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target ? e.target.value : e }));
@@ -176,12 +177,20 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
   };
   const delivery = ['delivery', 'both'].includes(form.fulfilment_c);
 
+  // intent: 'save' keeps a draft; any other action also needs the deal to be complete (a closing time included).
+  function go(intent = 'save') {
+    const errs = validateDeal(form, mode);
+    if (intent !== 'save' && !form.deadline_c) errs.deadline_c = 'Set when bookings close before this step';
+    setErrors(errs);
+    if (Object.keys(errs).length) {
+      requestAnimationFrame(() => document.querySelector('form [aria-invalid="true"], form .text-destructive')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+      return;
+    }
+    onSubmit(formToPayload(form), intent);
+  }
   function submit(e) {
     e.preventDefault();
-    const errs = validateDeal(form);
-    setErrors(errs);
-    if (Object.keys(errs).length) return;
-    onSubmit(formToPayload(form));
+    go('save');
   }
 
   return (
@@ -201,20 +210,24 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Status" hint="Draft deals are only visible to the team.">
-            <Select value={form.status_c} onValueChange={set('status_c')}>
-              <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {DEAL_STATUS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+          {!vendorMode && (
+            <Field label="Status" hint="Use the buttons below to send a deal for review. Changing this by hand skips the vendor's confirmation.">
+              <Select value={form.status_c} onValueChange={set('status_c')}>
+                <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DEAL_STATUS.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
         </div>
-        <Field label="Vendor" error={errors.vendor_c}>
-          <LookupPicker table="vendors_c" searchField="Name" value={form.vendor_c} onChange={set('vendor_c')} placeholder="Choose a checked vendor" aria-label="Vendor" clearable />
-        </Field>
+        {!vendorMode && (
+          <Field label="Vendor" error={errors.vendor_c}>
+            <LookupPicker table="vendors_c" searchField="Name" value={form.vendor_c} onChange={set('vendor_c')} placeholder="Choose a checked vendor" aria-label="Vendor" clearable />
+          </Field>
+        )}
       </Section>
 
       <Section title="Photos and video" description="The first photo is the cover. Add up to 8 that show the work: the crew, the equipment, before and after. A short caption under each explains it.">
@@ -338,12 +351,18 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
           <Field label="Capacity cap" htmlFor="df-cap" error={errors.capacity_c}>
             <Input id="df-cap" type="number" min={1} value={form.capacity_c} onChange={set('capacity_c')} placeholder="40" />
           </Field>
-          <Field label="Commission %" htmlFor="df-comm">
-            <Input id="df-comm" type="number" min={0} step="0.5" value={form.commission_c} onChange={set('commission_c')} placeholder="15" />
-          </Field>
-          <Field label="Round" htmlFor="df-round">
-            <Input id="df-round" type="number" min={1} value={form.round_c} onChange={set('round_c')} placeholder="1" />
-          </Field>
+          {vendorMode ? (
+            <p className="text-[13px] leading-5 text-muted-foreground sm:col-span-2">Lotmates commission: {form.commission_c || 15}%, paid by the vendor. The team confirms it when they review the deal.</p>
+          ) : (
+            <>
+              <Field label="Commission %" htmlFor="df-comm">
+                <Input id="df-comm" type="number" min={0} step="0.5" value={form.commission_c} onChange={set('commission_c')} placeholder="15" />
+              </Field>
+              <Field label="Round" htmlFor="df-round">
+                <Input id="df-round" type="number" min={1} value={form.round_c} onChange={set('round_c')} placeholder="1" />
+              </Field>
+            </>
+          )}
         </div>
       </Section>
 
@@ -431,14 +450,16 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
 
       <div className="sticky bottom-0 z-(--z-base) -mx-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-(--radius) md:border">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
-        <Button type="submit" disabled={saving}>
-          {saving ? (
-            <>
-              <ApperIcon name="LoaderCircle" size={16} className="animate-spin" />
-              Saving…
-            </>
-          ) : submitLabel}
-        </Button>
+        {(actions ?? [{ intent: 'save', label: submitLabel, variant: 'default' }]).map((a) => (
+          <Button key={a.intent} type="button" variant={a.variant ?? 'default'} disabled={saving} onClick={() => go(a.intent)}>
+            {saving ? (
+              <>
+                <ApperIcon name="LoaderCircle" size={16} className="animate-spin" />
+                Saving…
+              </>
+            ) : a.label}
+          </Button>
+        ))}
       </div>
     </form>
   );

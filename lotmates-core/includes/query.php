@@ -70,7 +70,12 @@ function lm_grants($table, $user)
         case 'deals_c':
             $g[] = ["status_c IN ('Live','Closed','Failed')", $pub_deal];
             if ($profile === 'Vendor_c') {
-                $g[] = ['vendor_c IN ' . lm_ids_sql(lm_my_vendor_ids($uid)), '*'];
+                $g[] = ['vendor_c IN ' . lm_ids_sql(lm_my_vendor_ids($uid)) . " AND (status_c <> 'Draft' OR origin_c = 'vendor')", '*'];
+            }
+            break;
+        case 'dealEvents_c':
+            if ($profile === 'Vendor_c') {
+                $g[] = ['deal_c IN (SELECT Id FROM ' . lm_table('deals_c') . ' WHERE vendor_c IN ' . lm_ids_sql(lm_my_vendor_ids($uid)) . " AND (status_c <> 'Draft' OR origin_c = 'vendor'))", '*'];
             }
             break;
         case 'reviews_c':

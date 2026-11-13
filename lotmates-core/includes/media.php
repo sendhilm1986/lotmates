@@ -69,7 +69,8 @@ function lm_register_media_routes()
     register_rest_route('lotmates/v1', '/media', [
         'methods' => 'POST',
         'permission_callback' => function () {
-            return lm_is_admin(wp_get_current_user()) ? true : new WP_Error('lm_forbidden', 'Only the Lotmates team can add photos.', ['status' => 403]);
+            $u = wp_get_current_user();
+            return lm_is_admin($u) || lm_profile_of($u) === 'Vendor_c' ? true : new WP_Error('lm_forbidden', 'Only the Lotmates team and vendors can add deal photos.', ['status' => 403]);
         },
         'callback' => function (WP_REST_Request $r) {
             $files = $r->get_file_params();

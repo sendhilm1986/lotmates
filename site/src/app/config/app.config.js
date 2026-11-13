@@ -52,7 +52,7 @@ export const AUTH_PROFILES = [
     key: 'vendor',
     name: 'Vendor_c',
     profileSlug: "|zkuIgjqmASB8iRhy0t8Xb/eptPDJ/ArMy16Jnt2zk64=",
-    redirectAfterAuth: '/bookings',
+    redirectAfterAuth: '/vendor',
     authPage: {
       loginTitle: 'Vendor Sign In',
       signupTitle: 'Create Vendor Account',

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Lotmates Core
  * Description: Data, roles, sign-in and the private API behind lotmates.in. Keeps everyone except the site owner out of wp-admin.
- * Version: 0.5.0
+ * Version: 0.6.0
  * Author: Clickworthy
  * Requires PHP: 8.0
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LM_VERSION', '0.5.0');
+define('LM_VERSION', '0.6.0');
 define('LM_DIR', plugin_dir_path(__FILE__));
 // Public site the API serves. Change here if the front end moves.
 define('LM_SITE_URL', 'https://lotmates.in');
@@ -30,6 +30,7 @@ require_once LM_DIR . 'includes/pdf.php';
 require_once LM_DIR . 'includes/invoices.php';
 require_once LM_DIR . 'includes/og.php';
 require_once LM_DIR . 'includes/emails.php';
+require_once LM_DIR . 'includes/deal_review.php';
 require_once LM_DIR . 'includes/team.php';
 require_once LM_DIR . 'includes/proposals.php';
 require_once LM_DIR . 'includes/ambassadors.php';
@@ -94,6 +95,7 @@ add_action('rest_api_init', function () {
     lm_register_neighbour_routes();
     lm_register_vendor_app_routes();
     lm_register_review_photo_routes();
+    lm_register_deal_review_routes();
 });
 
 

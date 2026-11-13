@@ -8,7 +8,7 @@ import StatusBadge from '@/components/StatusBadge';
 import RatingStars from '@/components/RatingStars';
 import { ListSkeleton } from '@/components/PageSkeleton';
 import { Button } from '@/components/ui/button';
-import { DEAL_FIELDS, DEAL_STYLES, dealState, dealWhere, inr, timeLeft } from '@/services/dealRules';
+import { DEAL_FIELDS, DEAL_STYLES, dealState, dealStatusLabel, dealWhere, inr, timeLeft } from '@/services/dealRules';
 import { VENDOR_PUBLIC_FIELDS, userIdOf, unwrapList } from '@/services/records';
 
 export const route = { path: '/vendor/deals', layout: 'owner', access: "profile === 'Vendor_c'" };
@@ -46,12 +46,20 @@ export default function VendorDeals() {
         description={vendor ? vendor.Name : 'Deals you deliver through Lotmates.'}
         actions={
           vendor ? (
-            <Button variant="outline" asChild>
-              <Link to={`/partners/${vendor.Id}`}>
-                <ApperIcon name="Store" size={16} />
-                Public profile
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link to="/vendor/deals/new">
+                  <ApperIcon name="Plus" size={16} />
+                  New deal
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to={`/partners/${vendor.Id}`}>
+                  <ApperIcon name="Store" size={16} />
+                  Public profile
+                </Link>
+              </Button>
+            </div>
           ) : null
         }
       >
@@ -77,7 +85,7 @@ export default function VendorDeals() {
         </p>
       ) : deals.length === 0 ? (
         <p className="rounded-[22px] bg-card shadow-sm p-8 text-center text-sm text-muted-foreground">
-          No deals yet. The team will share a draft with you before anything goes live.
+          No deals yet. Start one yourself and the team reviews it, or wait for the team to send you one to confirm. Nothing goes live without both of you agreeing.
         </p>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-[22px] bg-card shadow-sm">
@@ -88,9 +96,9 @@ export default function VendorDeals() {
                 <div
                   role="link"
                   tabIndex={0}
-                  onClick={() => navigate(`/deals/${d.Id}`)}
+                  onClick={() => navigate(['Live', 'Closed', 'Failed'].includes(d.status_c) ? `/deals/${d.Id}` : `/vendor/deals/${d.Id}`)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') navigate(`/deals/${d.Id}`);
+                    if (e.key === 'Enter') navigate(['Live', 'Closed', 'Failed'].includes(d.status_c) ? `/deals/${d.Id}` : `/vendor/deals/${d.Id}`);
                   }}
                   className="flex cursor-pointer flex-col gap-2 px-5 py-5 transition-colors md:px-6 duration-(--transition-fast) hover:bg-accent sm:flex-row sm:items-center"
                 >
@@ -108,7 +116,7 @@ export default function VendorDeals() {
                     {d.status_c === 'Live' ? (
                       <span className="text-xs text-muted-foreground">{timeLeft(d.deadline_c)}</span>
                     ) : (
-                      <StatusBadge value={d.status_c} styles={DEAL_STYLES} />
+                      <StatusBadge value={d.status_c} styles={DEAL_STYLES} label={dealStatusLabel(d.status_c)} />
                     )}
                   </div>
                 </div>

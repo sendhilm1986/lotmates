@@ -12,14 +12,26 @@ export default function DealNew() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
 
-  async function create(payload) {
+  // intent: 'save' (draft), 'send' (to the vendor to confirm) or 'publish' (without vendor review).
+  async function create(payload, intent) {
     setSaving(true);
     try {
-      const res = await sdk.table('deals_c').create({ ...payload, bookedHomes_c: 0, unlockedTier_c: 1 });
+      const flow = intent !== 'save';
+      const res = await sdk.table('deals_c').create({ ...payload, ...(flow ? { status_c: 'Draft' } : {}), origin_c: 'admin', bookedHomes_c: 0, unlockedTier_c: 1 });
       if (res.messages?.length) toast.error(res.messages[0], { description: res.messages.slice(1).join('\n') || undefined });
       if (!res.data?.length) return;
-      toast.success(payload.status_c === 'Live' ? 'Deal published' : 'Draft saved');
-      navigate(`/admin/deals/${res.data[0].Id}`);
+      const id = res.data[0].Id;
+      if (flow) {
+        const r = await sdk.dealFlow.act(id, intent === 'send' ? 'send_to_vendor' : 'publish_direct');
+        if (!r.ok) {
+          toast.error(r.error.message, { description: 'The deal is saved as a draft.' });
+          return navigate(`/admin/deals/${id}`);
+        }
+        toast.success(intent === 'send' ? 'Sent to the vendor to confirm' : 'Published without vendor review');
+      } else {
+        toast.success(payload.status_c === 'Live' ? 'Deal published' : 'Draft saved');
+      }
+      navigate(`/admin/deals/${id}`);
     } finally {
       setSaving(false);
     }
@@ -35,12 +47,16 @@ export default function DealNew() {
       </Button>
       <div>
         <h1 className="font-heading text-3xl font-extrabold tracking-tight text-foreground">New deal</h1>
-        <p className="mt-1 text-muted-foreground">Set the vendor's tiers, the minimum and the deadline. Save as draft until the vendor signs.</p>
+        <p className="mt-1 text-muted-foreground">Set the vendor's tiers, the minimum and the deadline. Send it to the vendor to confirm, or publish it yourself when no review is needed.</p>
       </div>
       <DealForm
         initial={dealToForm(null)}
         saving={saving}
-        submitLabel="Create deal"
+        actions={[
+          { intent: 'save', label: 'Save draft', variant: 'ghost' },
+          { intent: 'publish', label: 'Publish without vendor review', variant: 'outline' },
+          { intent: 'send', label: 'Send to vendor for review' },
+        ]}
         onSubmit={create}
         onCancel={() => navigate('/admin/deals')}
       />

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DEAL_FIELDS, DEAL_STATUS, DEAL_STYLES, CATEGORY_VALUES, categoryLabel, categoryIcon, dealState, dealWhere, inr } from '@/services/dealRules';
+import { DEAL_FIELDS, DEAL_STATUS, DEAL_STYLES, CATEGORY_VALUES, categoryLabel, categoryIcon, dealState, dealStatusLabel, dealWhere, inr } from '@/services/dealRules';
 
 export const route = { path: '/admin/deals', layout: 'owner', access: "profile === 'Admin_c'" };
 export const nav = { icon: 'Tag', label: 'Deals', order: 30, profiles: ['Admin_c'], count: { table: 'deals_c', where: null } };
@@ -175,7 +175,7 @@ export default function DealsAdmin() {
                       <p className="min-w-0 truncate text-sm text-muted-foreground">
                         {d.vendor_c?.Name ?? 'No vendor'}, {dealWhere(d) || 'no area'}
                       </p>
-                      <StatusBadge value={d.status_c} className="flex-none" />
+                      <StatusBadge value={d.status_c} label={dealStatusLabel(d.status_c)} className="flex-none" />
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="relative h-2 flex-1 rounded-full bg-muted">

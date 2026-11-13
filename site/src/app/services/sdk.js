@@ -518,7 +518,17 @@ const reviewPhotos = {
   },
 };
 
+// Deals written by vendors and reviewed by the team (and the other way round).
+const dealFlow = {
+  // Create or update a vendor's own deal. Returns { Id }.
+  save: (fields) => accountCall('/vendor/deal', fields),
+  // action: send_to_vendor, recall, request_changes, approve, approve_publish, go_live, publish_direct (team);
+  // accept, request_changes, submit, withdraw (vendor).
+  act: (dealId, action, { note = '', confirm = false } = {}) => accountCall('/deal/action', { dealId, action, note, confirm }),
+};
+
 export const sdk = {
+  dealFlow,
   availability,
   reviewPhotos,
   vendorApps,

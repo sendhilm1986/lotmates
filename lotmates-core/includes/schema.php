@@ -40,6 +40,11 @@ function lm_schema()
             'fulfilment_c' => 'pick', 'schedule_c' => 'pick', 'timeSlots_c' => 'long', 'slotCapacity_c' => 'int',
             'vendor_c' => 'lookup:vendors_c', 'locality_c' => 'lookup:localities_c', 'community_c' => 'lookup:communities_c',
             'city_c' => 'lookup:cities_c', 'pickupAddress_c' => 'text',
+            'origin_c' => 'pick', 'reviewNote_c' => 'long', 'agreedBy_c' => 'people', 'agreedOn_c' => 'dt', 'agreedTerms_c' => 'long',
+            'approvedBy_c' => 'people', 'approvedOn_c' => 'dt', 'skipReview_c' => 'int',
+        ],
+        'dealEvents_c' => [
+            'deal_c' => 'lookup:deals_c', 'kind_c' => 'pick', 'note_c' => 'long', 'role_c' => 'pick', 'terms_c' => 'long', 'ip_c' => 'text',
         ],
         'bookings_c' => [
             'homes_c' => 'int', 'unitPrice_c' => 'dec', 'amountPaid_c' => 'dec', 'finalPrice_c' => 'dec',

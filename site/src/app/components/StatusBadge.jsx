@@ -13,6 +13,7 @@ const TONE = {
 const TONE_OF = {
   Live: 'active', Booked: 'active', Open: 'active',
   Closed: 'positive', Confirmed: 'positive', Done: 'positive', Paid: 'positive', Active: 'positive', Resolved: 'positive', Approved: 'positive',
+  'Awaiting vendor': 'waiting', 'Awaiting team': 'waiting', 'Changes requested': 'info',
   Pending: 'waiting', Due: 'waiting', Probation: 'waiting', 'In review': 'waiting', New: 'waiting', Onboarding: 'waiting', 'Coming soon': 'waiting',
   Refunded: 'info', Contacted: 'info', Reviewing: 'info', Checking: 'info',
   Failed: 'negative', Removed: 'negative', Rejected: 'negative',
