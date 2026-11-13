@@ -13,20 +13,12 @@ if (!defined('ABSPATH')) {
  * Deals saved before these settings existed follow their category's usual way.
  */
 
-const LM_SCHEDULE_DEFAULTS = [
-    'Health' => ['service', 'datetime'],
-    'Cleaning' => ['service', 'date'],
-    'Pest' => ['service', 'date'],
-    'AC' => ['service', 'date'],
-    'Solar' => ['service', 'none'],
-    'Products' => ['delivery', 'none'],
-];
 const LM_DEFAULT_SLOTS = "Morning, 8 am to 12 pm\nAfternoon, 12 pm to 4 pm\nEvening, 4 pm to 8 pm";
 
 function lm_deal_fulfilment($deal)
 {
     $f = $deal['fulfilment_c'] ?? null;
-    return in_array($f, ['service', 'delivery', 'pickup', 'both'], true) ? $f : (LM_SCHEDULE_DEFAULTS[$deal['category_c'] ?? ''][0] ?? 'service');
+    return in_array($f, ['service', 'delivery', 'pickup', 'both'], true) ? $f : lm_category_defaults($deal['category_c'] ?? '')[0];
 }
 
 /** What this one booking does: service, delivery or pickup. A 'both' deal follows the buyer's choice (delivery if none). */
@@ -42,7 +34,7 @@ function lm_booking_mode($deal, $booking = null)
 function lm_deal_schedule($deal)
 {
     $s = $deal['schedule_c'] ?? null;
-    return in_array($s, ['none', 'date', 'datetime'], true) ? $s : (LM_SCHEDULE_DEFAULTS[$deal['category_c'] ?? ''][1] ?? 'date');
+    return in_array($s, ['none', 'date', 'datetime'], true) ? $s : lm_category_defaults($deal['category_c'] ?? '')[1];
 }
 
 function lm_deal_slots($deal)

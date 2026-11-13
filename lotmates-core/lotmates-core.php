@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LM_VERSION', '0.6.0');
+define('LM_VERSION', '0.7.0');
 define('LM_DIR', plugin_dir_path(__FILE__));
 // Public site the API serves. Change here if the front end moves.
 define('LM_SITE_URL', 'https://lotmates.in');
@@ -22,6 +22,7 @@ require_once LM_DIR . 'includes/lockdown.php';
 require_once LM_DIR . 'includes/auth.php';
 require_once LM_DIR . 'includes/query.php';
 require_once LM_DIR . 'includes/seed.php';
+require_once LM_DIR . 'includes/categories.php';
 require_once LM_DIR . 'includes/schedule.php';
 require_once LM_DIR . 'includes/payments.php';
 require_once LM_DIR . 'includes/account.php';
@@ -73,7 +74,9 @@ function lm_migrate()
     // Repeat bookings: allowed by default for checkups, AC care and products.
     $wpdb->query('UPDATE ' . lm_table('deals_c') . " SET allowRepeat_c = IF(category_c IN ('Health','AC','Products'), 1, 0) WHERE allowRepeat_c IS NULL");
     // Delivery and scheduling: write each category's usual way onto existing deals.
-    foreach (LM_SCHEDULE_DEFAULTS as $cat => [$fulfilment, $schedule]) {
+    lm_categories_seed();
+    foreach (lm_categories() as $cat => $def) {
+        [$fulfilment, $schedule] = [$def['fulfilment'], $def['schedule']];
         $wpdb->query($wpdb->prepare('UPDATE ' . lm_table('deals_c') . ' SET fulfilment_c = %s WHERE fulfilment_c IS NULL AND category_c = %s', $fulfilment, $cat));
         $wpdb->query($wpdb->prepare('UPDATE ' . lm_table('deals_c') . ' SET schedule_c = %s WHERE schedule_c IS NULL AND category_c = %s', $schedule, $cat));
     }

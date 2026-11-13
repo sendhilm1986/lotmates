@@ -204,7 +204,7 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
             <Select value={form.category_c} onValueChange={setCategory}>
               <SelectTrigger aria-label="Category"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {CATEGORY_VALUES.map((c) => (
+                {[...new Set([...CATEGORY_VALUES, ...(form.category_c ? [form.category_c] : [])])].map((c) => (
                   <SelectItem key={c} value={c}>{categoryLabel(c)}</SelectItem>
                 ))}
               </SelectContent>

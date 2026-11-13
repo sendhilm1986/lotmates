@@ -18,6 +18,10 @@ function lm_schema()
         'cities_c' => [
             'state_c' => 'text', 'status_c' => 'pick',
         ],
+        'categories_c' => [
+            'key_c' => 'text', 'icon_c' => 'text', 'repeat_c' => 'int', 'fulfilment_c' => 'pick', 'schedule_c' => 'pick',
+            'status_c' => 'pick', 'order_c' => 'int',
+        ],
         'localities_c' => [
             'pincode_c' => 'text', 'status_c' => 'pick', 'city_c' => 'lookup:cities_c',
         ],

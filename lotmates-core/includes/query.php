@@ -52,6 +52,7 @@ function lm_grants($table, $user)
 
     switch ($table) {
         case 'cities_c':
+        case 'categories_c':
         case 'localities_c':
             $g[] = ['1=1', array_values(array_diff(array_keys(lm_fields($table)), ['Owner']))];
             break;
@@ -705,7 +706,7 @@ function lm_check_proposal($row, $op)
         return 'Enter a 10-digit phone number, e.g. 98765 43210.';
     }
     $cat = $row['category_c'] ?? null;
-    if ($cat !== null && $cat !== 'Other' && !in_array($cat, ['Health', 'Cleaning', 'Solar', 'Products', 'Pest', 'AC'], true)) {
+    if ($cat !== null && $cat !== 'Other' && !in_array($cat, lm_category_keys(), true)) {
         return 'Pick a category.';
     }
     foreach (['Name' => 200, 'newCategory_c' => 80, 'newCommunity_c' => 120, 'newLocality_c' => 120, 'notes_c' => 2000] as $f => $max) {

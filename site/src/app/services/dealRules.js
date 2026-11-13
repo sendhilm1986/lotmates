@@ -1,3 +1,7 @@
+// Categories are managed by the team (Admin > Categories). These start with the original six so
+// the pages work before the list arrives, then loadCategories() (services/categories.js) replaces
+// the contents in place. CATEGORY_VALUES holds the categories people can choose today; CATEGORY_META
+// also keeps retired ones so old deals still show their name.
 export const CATEGORY_VALUES = ['Health', 'Cleaning', 'Solar', 'Products', 'Pest', 'AC'];
 
 export const CATEGORY_META = {
@@ -8,6 +12,14 @@ export const CATEGORY_META = {
   Pest: { label: 'Pest control', icon: 'Bug' },
   AC: { label: 'AC care', icon: 'Wind' },
 };
+
+// Icons an admin can give a category (each must be a lucide icon name; they are bundled at build time).
+export const CATEGORY_ICONS = [
+  'Tag', 'HeartPulse', 'Stethoscope', 'Pill', 'Dumbbell', 'Sparkles', 'Brush', 'Droplets', 'Sun', 'Zap', 'Lightbulb', 'Wind',
+  'Wrench', 'Hammer', 'Paintbrush', 'Bug', 'Package', 'ShoppingBasket', 'Gift', 'Milk', 'Apple', 'Utensils', 'Coffee', 'Cake',
+  'Leaf', 'Sprout', 'Flower2', 'Dog', 'Baby', 'Shirt', 'Scissors', 'Sofa', 'Home', 'Key', 'Car', 'Bike', 'Truck', 'Camera',
+  'Music', 'BookOpen', 'GraduationCap', 'Laptop', 'Smartphone', 'ShieldCheck', 'WashingMachine', 'Refrigerator', 'Fan', 'Plug',
+];
 
 export const DEAL_STATUS = ['Draft', 'Awaiting vendor', 'Awaiting team', 'Changes requested', 'Approved', 'Live', 'Closed', 'Failed'];
 // Shown to people instead of the stored word.
@@ -301,6 +313,23 @@ export function demoPaymentRef() {
 
 // Can one neighbour book this deal more than once? Set per deal; these are the defaults.
 export const REPEAT_DEFAULT = { Health: true, AC: true, Products: true, Cleaning: false, Pest: false, Solar: false };
+
+/** Swap in the team's categories (called by services/categories.js). Keeps the same objects so imports stay live. */
+export function applyCategories(rows) {
+  if (!rows?.length) return;
+  CATEGORY_VALUES.length = 0;
+  for (const k of Object.keys(CATEGORY_META)) delete CATEGORY_META[k];
+  for (const k of Object.keys(REPEAT_DEFAULT)) delete REPEAT_DEFAULT[k];
+  for (const k of Object.keys(SCHEDULE_DEFAULTS)) delete SCHEDULE_DEFAULTS[k];
+  for (const r of rows) {
+    const key = r.key_c;
+    if (!key) continue;
+    CATEGORY_META[key] = { label: r.Name, icon: r.icon_c || 'Tag' };
+    REPEAT_DEFAULT[key] = Number(r.repeat_c) === 1;
+    SCHEDULE_DEFAULTS[key] = [r.fulfilment_c || 'service', r.schedule_c || 'date'];
+    if (r.status_c !== 'Retired') CATEGORY_VALUES.push(key);
+  }
+}
 export const allowsRepeat = (deal) =>
   deal?.allowRepeat_c === null || deal?.allowRepeat_c === undefined || deal?.allowRepeat_c === ''
     ? Boolean(REPEAT_DEFAULT[deal?.category_c])

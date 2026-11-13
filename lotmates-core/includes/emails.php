@@ -1003,8 +1003,7 @@ function lm_register_email_routes()
 /** The words for a proposal's category, community and contact preference, shared by the proposal emails. */
 function lm_proposal_email_ctx($p)
 {
-    $labels = ['Health' => 'Health checkups', 'Cleaning' => 'Deep cleaning', 'Solar' => 'Rooftop solar', 'Products' => 'Local products', 'Pest' => 'Pest control', 'AC' => 'AC care'];
-    $cat = $p['category_c'] === 'Other' ? trim((string) $p['newCategory_c']) . ' (new category)' : ($labels[$p['category_c']] ?? (string) $p['category_c']);
+    $cat = $p['category_c'] === 'Other' ? trim((string) $p['newCategory_c']) . ' (new category)' : lm_category_label($p['category_c']);
     if ($p['community_c']) {
         $c = lm_row('communities_c', (int) $p['community_c']);
         $community = $c['Name'] ?? 'Unknown';

@@ -16,7 +16,6 @@ const LM_VENDOR_QA = [
     'test' => ['label' => 'Test job', 'vendorCheck' => 'Test job', 'optional' => false],
     'bank' => ['label' => 'Bank account verified', 'vendorCheck' => null, 'optional' => false],
 ];
-const LM_VENDOR_CATEGORIES = ['Health', 'Cleaning', 'Solar', 'Products', 'Pest', 'AC', 'Other'];
 
 function lm_vapp_qa($app)
 {
@@ -26,8 +25,7 @@ function lm_vapp_qa($app)
 
 function lm_vapp_email_ctx($app)
 {
-    $labels = ['Health' => 'Health checkups', 'Cleaning' => 'Deep cleaning', 'Solar' => 'Rooftop solar', 'Products' => 'Local products', 'Pest' => 'Pest control', 'AC' => 'AC care'];
-    $cat = $app['category_c'] === 'Other' ? trim((string) $app['newCategory_c']) : ($labels[$app['category_c']] ?? (string) $app['category_c']);
+    $cat = $app['category_c'] === 'Other' ? trim((string) $app['newCategory_c']) : lm_category_label($app['category_c']);
     $areas = lm_vapp_area_names($app);
     $first = strtok(trim((string) $app['contactName_c']), ' ') ?: 'there';
     $phone = trim((string) $app['phone_c']);
@@ -105,7 +103,7 @@ function lm_vendor_apply(WP_REST_Request $r)
     if (!preg_match('/^\+?[\d\s-]{10,16}$/', $phone)) {
         return lm_err('Enter a 10-digit phone number, e.g. 98765 43210.');
     }
-    if (!in_array($category, LM_VENDOR_CATEGORIES, true)) {
+    if (!in_array($category, array_merge(lm_category_keys(), ['Other']), true)) {
         return lm_err('Pick what you offer.');
     }
     if ($category === 'Other' && $new_category === '') {
