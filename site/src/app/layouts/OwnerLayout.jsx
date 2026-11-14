@@ -9,7 +9,7 @@ import UserMenu from '@/components/UserMenu';
 import MarkLogo from '@/components/MarkLogo';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 
-const EXACT = ['/', '/admin', '/vendor', '/ambassador'];
+const EXACT = ['/', '/admin', '/vendor', '/ambassador', '/home'];
 const NAV_KEY = 'lotmates.navCollapsed';
 
 function readCollapsed(user) {

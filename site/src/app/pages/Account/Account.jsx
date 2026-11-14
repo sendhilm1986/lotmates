@@ -134,6 +134,7 @@ export default function Account() {
         {['Customer_c', 'Ambassador_c'].includes(me.profile) && <HomeSection me={me} onSaved={update} />}
         {me.profile === 'Vendor_c' && <BusinessSection me={me} />}
         {me.profile === 'Ambassador_c' && <CommunitiesSection me={me} />}
+        <MoreSection me={me} />
         <SignInSection me={me} onSaved={update} />
         <DataSection me={me} onSaved={update} logout={logout} />
       </div>
@@ -335,6 +336,36 @@ function CommunitiesSection({ me }) {
           <p className="p-6 text-muted-foreground">No communities assigned yet.</p>
         )}
       </div>
+    </Section>
+  );
+}
+
+// Pages that don't need their own menu item, kept one tap away.
+const MORE_LINKS = {
+  Customer_c: [
+    ['/complaints', 'MessageSquareWarning', 'Report a problem', 'Something went wrong with a booking? Tell us and follow the reply.'],
+    ['/reviews', 'Star', 'Reviews', 'What your neighbours said about the vendors. Rate your own jobs from each booking.'],
+  ],
+};
+
+function MoreSection({ me }) {
+  const links = MORE_LINKS[me.profile];
+  if (!links) return null;
+  return (
+    <Section id="more" title="Help and more" description="Less-used pages, all in one place.">
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {links.map(([to, icon, label, note]) => (
+          <li key={to}>
+            <Link to={to} className="flex h-full items-start gap-3 rounded-2xl bg-card p-4 shadow-sm transition-colors hover:bg-accent/50">
+              <ApperIcon name={icon} size={20} className="mt-0.5 flex-none text-primary" />
+              <span>
+                <span className="block font-medium text-foreground">{label}</span>
+                <span className="block text-sm text-muted-foreground">{note}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </Section>
   );
 }

@@ -22,11 +22,13 @@ const countItems = discoveredNavItems.filter((item) => item.count?.table);
 
 async function fetchCounts(user) {
   if (!countItems.length) return {};
-  const { eq, and } = window.ApperSDK.CoreSDK;
+  const { eq, and, isIn } = window.ApperSDK.CoreSDK;
   // Ambassadors can read their community's bookings too, but their badge counts only their own.
   const ownOnly = (table) => table === 'bookings_c' && user?.profile === 'Ambassador_c' && user?.userId;
   const results = await Promise.all(countItems.map((item) => {
-    const own = ownOnly(item.count.table) ? eq('Owner', user.userId) : null;
+    // Neighbours and ambassadors: the badge is their own bookings that are still on.
+    const personal = item.count.table === 'bookings_c' && ['Customer_c', 'Ambassador_c'].includes(user?.profile) && user?.userId;
+    const own = personal ? and(eq('Owner', user.userId), isIn('status_c', ['Booked', 'Confirmed'])) : ownOnly(item.count.table) ? eq('Owner', user.userId) : null;
     const where = own && item.count.where ? and(item.count.where, own) : own ?? item.count.where;
     return sdk.table(item.count.table)
       .select([{ field: 'Id' }])
@@ -54,11 +56,15 @@ export function useOwnerLayoutData() {
   }, [user?.profile]);
 
   const navItems = useMemo(() => {
-    const items = discoveredNavItems.filter((item) => !item.profiles || item.profiles.includes(user?.profile));
+    const mine = user?.profile && user.profile !== 'Admin_c';
+    const items = discoveredNavItems
+      .filter((item) => !item.profiles || item.profiles.includes(user?.profile))
+      // For everyone but the team, the bookings page holds only their own.
+      .map((item) => (mine && item.to === '/bookings' ? { ...item, label: 'My bookings' } : item));
     // Neighbours land in their bookings; a Deals tab keeps booking one tap away.
-    return user?.profile === 'Customer_c'
-      ? [{ icon: 'Tag', label: 'Deals', order: 5, to: '/deals', path: '/deals', href: '/deals' }, ...items]
-      : items;
+    if (user?.profile !== 'Customer_c') return items;
+    const deals = { icon: 'Tag', label: 'Deals', order: 5, to: '/deals', path: '/deals', href: '/deals' };
+    return [...items, deals].sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
   }, [user?.profile]);
 
   const navGroups = useMemo(() => {

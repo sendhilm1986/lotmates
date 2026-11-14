@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { REVIEW_FIELDS, userIdOf, sameId, unwrapList } from '@/services/records';
 
 export const route = { path: '/reviews', layout: 'owner', access: "['Admin_c','Vendor_c','Customer_c'].includes(profile)" };
-export const nav = { icon: 'Star', label: 'Reviews', order: 70, profiles: ['Admin_c', 'Vendor_c', 'Customer_c'] };
+export const nav = { icon: 'Star', label: 'Reviews', order: 70, profiles: ['Admin_c', 'Vendor_c'] };
 
 const { eq } = window.ApperSDK.CoreSDK;
 

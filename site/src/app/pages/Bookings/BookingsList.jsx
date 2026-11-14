@@ -85,7 +85,7 @@ export default function BookingsList() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   // Neighbours start on what is still open; past bookings are one tap away.
-  const [group, setGroup] = useState(isAdmin || params.get('refund') ? 'all' : 'open');
+  const [group, setGroup] = useState(isAdmin || params.get('refund') || params.get('show') === 'all' ? 'all' : 'open');
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -143,7 +143,7 @@ export default function BookingsList() {
         { id: 'paid', fields: [{ field: 'amountPaid_c', fn: 'Sum', alias: 'count' }], where: own(isIn('paymentStatus_c', ['Paid', 'Refunded'])) },
         { id: 'due', fields: [{ field: 'refundDue_c', fn: 'Sum', alias: 'count' }], where: own(eq('refundStatus_c', 'Due')) },
         { id: 'back', fields: [{ field: 'refundDue_c', fn: 'Sum', alias: 'count' }], where: own(eq('refundStatus_c', 'Paid')) },
-        { id: 'open', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where: own(eq('status_c', 'Booked')) },
+        { id: 'open', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where: own(isAdmin ? eq('status_c', 'Booked') : isIn('status_c', ['Booked', 'Confirmed'])) },
       ])
       .limit(1)
       .fetch();
@@ -196,10 +196,10 @@ export default function BookingsList() {
         { label: 'Open bookings', value: money?.open ?? 0 },
       ]
     : [
-        { label: 'You paid', value: inr(money?.paid ?? 0) },
-        { label: 'Coming back so far', value: inr((building ?? 0) + Number(money?.due ?? 0)), hint: 'Final amount is set when each deal closes' },
-        { label: 'Already returned', value: inr(money?.back ?? 0) },
-        { label: 'Open bookings', value: money?.open ?? 0 },
+        { label: 'Active bookings', value: money?.open ?? 0, hint: 'Booked or confirmed' },
+        { label: 'You have spent', value: inr(Math.max(0, Number(money?.paid ?? 0) - Number(money?.back ?? 0))), hint: 'After refunds' },
+        { label: 'Refunds received', value: inr(money?.back ?? 0) },
+        { label: 'Still coming back', value: inr((building ?? 0) + Number(money?.due ?? 0)), hint: 'Grows as more neighbours join' },
       ];
 
   return (
@@ -246,7 +246,7 @@ export default function BookingsList() {
 
       {!isAdmin && (
         <div role="tablist" aria-label="Show bookings" className="flex gap-2">
-          {[['open', 'Open'], ['past', 'Past'], ['all', 'All']].map(([key, label]) => (
+          {[['open', 'Active'], ['past', 'Past'], ['all', 'All']].map(([key, label]) => (
             <button
               key={key}
               type="button"
@@ -275,7 +275,7 @@ export default function BookingsList() {
             aria-label="Search bookings"
           />
         </div>
-        <Select value={status} onValueChange={setStatus}>
+        {isAdmin && <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="h-11 rounded-full bg-card sm:w-44" aria-label="Status">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -285,7 +285,7 @@ export default function BookingsList() {
               <SelectItem key={s} value={s}>{s}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </Select>}
         <Select value={refund} onValueChange={setRefund}>
           <SelectTrigger className="h-11 rounded-full bg-card sm:w-44" aria-label="Refund">
             <SelectValue placeholder="Refund" />

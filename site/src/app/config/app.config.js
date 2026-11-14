@@ -32,7 +32,7 @@ export const AUTH_PROFILES = [
     key: 'customer',
     name: 'Customer_c',
     profileSlug: "|zkuIgjqmASB8iRhy0t8Xb2JfVWgezFTq+CL2kB8ZuhM=",
-    redirectAfterAuth: '/bookings',
+    redirectAfterAuth: '/home',
     authPage: {
       loginTitle: 'Neighbour Sign In',
       signupTitle: 'Create Neighbour Account',
