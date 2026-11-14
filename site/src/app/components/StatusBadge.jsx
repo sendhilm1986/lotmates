@@ -20,6 +20,9 @@ const TONE_OF = {
   Draft: 'neutral', Cancelled: 'neutral', None: 'neutral', Paused: 'neutral', Declined: 'neutral',
 };
 
+// Plain words for the stored ones.
+const PLAIN = { 'Awaiting vendor': 'Waiting for vendor', 'Awaiting team': 'Waiting for the team', Closed: 'Went ahead', Failed: "Didn't go ahead" };
+
 export default function StatusBadge({ value, className, label }) {
   if (!value) {
     return <span className="text-muted-foreground">—</span>;
@@ -27,7 +30,7 @@ export default function StatusBadge({ value, className, label }) {
   return (
     <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-[13px] font-medium leading-5', TONE[TONE_OF[value] ?? 'neutral'], className)}>
       <span aria-hidden className="size-1.5 rounded-full bg-(--dot)" />
-      {label ?? value}
+      {label ?? PLAIN[value] ?? value}
     </span>
   );
 }

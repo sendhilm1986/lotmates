@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { sdk } from '@/services/sdk';
 import { useFetch } from '@/hooks/useFetch';
 import { formatLocalDate, DATE_FORMATS } from '@/utils/date';
@@ -23,7 +23,8 @@ const PAGE_SIZE = 10;
 
 export default function DealsAdmin() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState('all');
+  const [params] = useSearchParams();
+  const [status, setStatus] = useState(DEAL_STATUS.includes(params.get('status')) ? params.get('status') : 'all');
   const [category, setCategory] = useState('all');
   const [locality, setLocality] = useState(null);
   const [sort, setSort] = useState('deadline');
@@ -91,13 +92,13 @@ export default function DealsAdmin() {
             aria-label="Search deals"
           />
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="w-full bg-card" aria-label="Status"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
               {DEAL_STATUS.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
+                <SelectItem key={s} value={s}>{dealStatusLabel(s)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -110,15 +111,6 @@ export default function DealsAdmin() {
               ))}
             </SelectContent>
           </Select>
-          <LookupPicker
-            table="localities_c"
-            searchField="Name"
-            value={locality}
-            onChange={setLocality}
-            placeholder="Any locality"
-            aria-label="Locality"
-            clearable
-          />
           <Select value={sort} onValueChange={setSort}>
             <SelectTrigger className="w-full bg-card" aria-label="Sort"><SelectValue /></SelectTrigger>
             <SelectContent>

@@ -6,6 +6,7 @@ import { sdk } from '@/services/sdk';
 import { useFetch } from '@/hooks/useFetch';
 import ApperIcon from '@/components/ApperIcon';
 import { ListSkeleton } from '@/components/PageSkeleton';
+import { NeedsYou, StatRow } from '@/components/RoleHome';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -89,7 +90,13 @@ export default function Dashboard() {
       .aggregate([{ id: 'pending', fields: [{ field: 'net_c', fn: 'Sum', alias: 'count' }], where: eq('status_c', 'Pending') }])
       .limit(1)
       .fetch();
-    return { complaints: pick(c, 'open'), proposals: pick(p, 'new'), payouts: pick(po, 'pending') };
+    const one = (table, where) => sdk.table(table).select([{ field: 'Id' }]).aggregate([{ id: 'n', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where }]).limit(1).fetch();
+    const [va, aa, rv] = await Promise.all([
+      one('vendorApps_c', eq('status_c', 'New')),
+      one('ambassadorApps_c', eq('status_c', 'New')),
+      sdk.table('deals_c').select(['Name', 'status_c']).where(eq('status_c', 'Awaiting team')).page(1, 10).fetch(),
+    ]);
+    return { complaints: pick(c, 'open'), proposals: pick(p, 'new'), payouts: pick(po, 'pending'), vendorApps: pick(va, 'n'), ambassadorApps: pick(aa, 'n'), toReview: rv.success ? rv.data : [] };
   }, []);
 
   const { data: liveDeals, loading: liveLoading } = useFetch(() => {
@@ -117,7 +124,16 @@ export default function Dashboard() {
   const tasks = [];
   const dueHours = (iso) => Math.max(0, Math.round((new Date(iso).getTime() - now) / 36e5));
   if (kpi?.dueCount) {
-    tasks.push({ key: 'refunds', to: '/bookings', lead: inr(kpi.due), tone: 'money', title: 'Refunds to send', note: `${kpi.dueCount} ${kpi.dueCount === 1 ? 'booking' : 'bookings'} waiting` });
+    tasks.push({ key: 'refunds', to: '/bookings', lead: inr(kpi.due), tone: 'money', title: 'Refunds to send', note: `${kpi.dueCount} ${kpi.dueCount === 1 ? 'booking' : 'bookings'} waiting`, cta: 'Send' });
+  }
+  (attention?.toReview ?? []).forEach((d) => {
+    tasks.push({ key: `review-${d.Id}`, to: `/admin/deals/${d.Id}`, lead: 'New', tone: 'urgent', title: d.Name, note: 'A vendor sent this deal for your approval', cta: 'Review' });
+  });
+  if (attention?.vendorApps) {
+    tasks.push({ key: 'vapps', to: '/admin/vendor-applications', lead: String(attention.vendorApps), tone: 'calm', title: attention.vendorApps === 1 ? 'New vendor application' : 'New vendor applications', note: 'A business wants to sell on Lotmates', cta: 'Review' });
+  }
+  if (attention?.ambassadorApps) {
+    tasks.push({ key: 'aapps', to: '/admin/ambassador-applications', lead: String(attention.ambassadorApps), tone: 'calm', title: attention.ambassadorApps === 1 ? 'New ambassador application' : 'New ambassador applications', note: 'Someone wants to represent their community', cta: 'Review' });
   }
   deals.forEach((d) => {
     const st = dealState(d);
@@ -128,6 +144,7 @@ export default function Dashboard() {
         to: `/admin/deals/${d.Id}`,
         lead: 'Ended',
         tone: 'urgent',
+        cta: 'Close',
         title: `Close ${d.Name}`,
         note: st.unlocked ? `Reached ${inr(st.current?.price)}, refunds go out when you close` : `${st.toMin} short of the minimum, everyone gets a full refund`,
       });
@@ -144,28 +161,29 @@ export default function Dashboard() {
     }
   });
   if (attention?.complaints) {
-    tasks.push({ key: 'complaints', to: '/complaints', lead: String(attention.complaints), tone: 'urgent', title: attention.complaints === 1 ? 'Complaint to handle' : 'Complaints to handle', note: 'Open or waiting on a reply' });
+    tasks.push({ key: 'complaints', to: '/complaints', lead: String(attention.complaints), tone: 'urgent', title: attention.complaints === 1 ? 'Complaint to handle' : 'Complaints to handle', note: 'Open or waiting on a reply', cta: 'Reply' });
   }
   if (attention?.proposals) {
-    tasks.push({ key: 'proposals', to: '/proposals', lead: String(attention.proposals), tone: 'calm', title: attention.proposals === 1 ? 'New proposal' : 'New proposals', note: 'Deals ambassadors are asking for' });
+    tasks.push({ key: 'proposals', to: '/proposals', lead: String(attention.proposals), tone: 'calm', title: attention.proposals === 1 ? 'New deal suggestion' : 'New deal suggestions', note: 'Deals ambassadors are asking for', cta: 'Read' });
   }
   (kpi?.payoutsToSetUp ?? []).forEach((p) => {
-    tasks.push({ key: `setup-${p.dealId}`, to: `/admin/deals/${p.dealId}`, lead: inr(p.amount), tone: 'money', title: `Set up the vendor payout: ${p.deal}`, note: 'The deal went ahead. Record what the vendor is owed' });
+    tasks.push({ key: `setup-${p.dealId}`, to: `/admin/deals/${p.dealId}`, lead: inr(p.amount), tone: 'money', title: `Set up the vendor payout: ${p.deal}`, note: 'The deal went ahead. Record what the vendor is owed', cta: 'Set up' });
   });
   if (kpi?.payoutsPending) {
-    tasks.push({ key: 'payouts', to: '/payouts', lead: inr(kpi.payoutsPending), tone: 'money', title: 'Vendor payouts pending', note: 'Pay once the jobs are done' });
+    tasks.push({ key: 'payouts', to: '/payouts', lead: inr(kpi.payoutsPending), tone: 'money', title: 'Vendor payouts pending', note: 'Pay once the jobs are done', cta: 'Pay' });
   }
 
   const summary = [
-    { label: 'Live deals', value: kpi?.live ?? 0, sub: kpi?.preparing ? `${kpi.preparing} being prepared` : 'None being prepared' },
-    { label: 'Bookings this week', value: kpi?.week ?? 0, sub: 'Paid, since Monday' },
+    { label: 'Live deals', value: kpi?.live ?? 0, sub: kpi?.preparing ? `${kpi.preparing} being prepared` : 'None being prepared', to: '/admin/deals?status=Live' },
+    { label: 'Bookings this week', value: kpi?.week ?? 0, sub: 'Paid, since Monday', to: '/bookings' },
     {
       label: 'Collected',
       value: inr(kpi?.kept ?? 0),
       sub: kpi?.onOpenDeals ? `${inr(kpi.onOpenDeals)} on deals still open` : `After ${inr(kpi?.refunded ?? 0)} refunded`,
+      to: '/bookings',
       title: `${inr(kpi?.paidIn ?? 0)} paid in, ${inr(kpi?.refunded ?? 0)} refunded. Money on open deals can still go back if a deal fails or its price drops.`,
     },
-    { label: 'Commission earned', value: inr(kpi?.commissionEarned ?? 0), sub: 'From deals that went ahead', title: 'Each confirmed booking at its final price, at its deal\'s commission rate.' },
+    { label: 'Commission earned', value: inr(kpi?.commissionEarned ?? 0), sub: 'From deals that went ahead', to: '/admin/deals?status=Closed', title: 'Each confirmed booking at its final price, at its deal\'s commission rate.' },
   ];
 
   const leadTone = {
@@ -193,49 +211,17 @@ export default function Dashboard() {
 
       {kpi && Number(kpi.live) + Number(kpi.draft) === 0 && <DemoSeedCard />}
 
+      <NeedsYou tasks={tasks} loading={liveLoading && liveDeals === undefined} empty="Nothing is waiting on you. A good moment to plan the next round." />
+
       {kpiError ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-destructive/5 px-5 py-4">
           <p className="text-sm text-foreground">The numbers didn't load. {String(kpiError)}</p>
           <Button variant="outline" size="sm" onClick={refetchKpi}>Try again</Button>
         </div>
       ) : (
-        <dl className="grid grid-cols-2 overflow-hidden rounded-[22px] bg-card shadow-sm sm:grid-cols-4">
-          {summary.map((s, i) => (
-            <div key={s.label} title={s.title} className={cn('min-w-0 px-5 py-5', i % 2 === 1 && 'border-l border-border', i >= 2 && 'border-t border-border sm:border-t-0', i === 2 && 'sm:border-l')}>
-              <dt className="truncate text-sm text-muted-foreground">{s.label}</dt>
-              <dd className="mt-1 font-heading text-[1.75rem] font-bold leading-tight tabular-nums text-foreground">
-                {kpi ? s.value : <Skeleton className="h-8 w-20" />}
-              </dd>
-              {kpi && <dd className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{s.sub}</dd>}
-            </div>
-          ))}
-        </dl>
+        <StatRow stats={summary} loading={!kpi} />
       )}
 
-      <section>
-        <h2 className="font-heading text-xl font-bold text-foreground">Needs you</h2>
-        {liveLoading && liveDeals === undefined ? (
-          <div className="mt-3"><ListSkeleton rows={3} /></div>
-        ) : tasks.length === 0 ? (
-          <p className="mt-3 text-muted-foreground">Nothing is waiting on you. A good moment to plan the next round.</p>
-        ) : (
-          <ul className="mt-3 grid gap-px overflow-hidden rounded-[22px] bg-border shadow-sm md:grid-cols-2">
-            {tasks.map((t) => (
-              <li key={t.key} className="bg-card">
-                <Link to={t.to} className="group flex h-full min-h-[76px] items-center gap-4 px-5 py-3.5 transition-colors duration-(--transition-fast) hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none">
-                  <span className={cn('w-[4.5rem] flex-none font-heading text-lg font-bold tabular-nums', leadTone[t.tone])}>{t.lead}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-foreground">{t.title}</p>
-                    <p className="truncate text-sm text-muted-foreground">{t.note}</p>
-                  </div>
-                  <ApperIcon name="ChevronRight" size={18} className="flex-none text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </li>
-            ))}
-            {tasks.length % 2 === 1 && <li aria-hidden className="hidden bg-card md:block" />}
-          </ul>
-        )}
-      </section>
 
       <section>
         <div className="flex items-baseline justify-between gap-3">

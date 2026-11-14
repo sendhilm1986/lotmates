@@ -59,7 +59,7 @@ export default function ProposalDetail() {
     setNote('');
   }, [proposal]);
 
-  const back = { to: '/proposals', label: 'Back to Proposals' };
+  const back = { to: '/proposals', label: 'Back to suggestions' };
 
   if (loading && proposal === undefined) {
     return (

@@ -61,6 +61,9 @@ export function useOwnerLayoutData() {
       .filter((item) => !item.profiles || item.profiles.includes(user?.profile))
       // For everyone but the team, the bookings page holds only their own.
       .map((item) => (mine && item.to === '/bookings' ? { ...item, label: 'My bookings' } : item))
+      .map((item) => (user?.profile === 'Ambassador_c' && item.to === '/proposals' ? { ...item, label: 'Suggest a deal' } : item))
+      // An ambassador's own bookings sit under Profile; their menu is about their communities.
+      .filter((item) => !(user?.profile === 'Ambassador_c' && item.to === '/bookings'))
       // A vendor's payouts are simply their money.
       .map((item) => (user?.profile === 'Vendor_c' && item.to === '/payouts' ? { ...item, label: 'Money' } : item));
     // Neighbours land in their bookings; a Deals tab keeps booking one tap away.

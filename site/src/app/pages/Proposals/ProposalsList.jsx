@@ -16,7 +16,7 @@ import { PROPOSAL_FIELDS, PROPOSAL_STATUS, PROPOSAL_STYLES, unwrapList, proposal
 import ProposalDialog from './ProposalDialog';
 
 export const route = { path: '/proposals', layout: 'owner', access: "['Admin_c','Ambassador_c'].includes(profile)" };
-export const nav = { icon: 'Lightbulb', label: 'Proposals', order: 40, profiles: ['Admin_c', 'Ambassador_c'] };
+export const nav = { icon: 'Lightbulb', label: 'Suggestions', order: 40, profiles: ['Admin_c', 'Ambassador_c'] };
 
 const { eq } = window.ApperSDK.CoreSDK;
 
@@ -38,13 +38,13 @@ export default function ProposalsList() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Proposals"
-        description={isAmbassador ? 'Deals your communities are asking for. The team replies on each one.' : 'Ideas from ambassadors. Accepted ones become next round’s deals.'}
+        title={isAmbassador ? 'Suggest a deal' : 'Suggestions'}
+        description={isAmbassador ? 'Deals your communities are asking for. The team replies on each one.' : 'Deals ambassadors are asking for. Accepted ones become next round’s deals.'}
         actions={
           isAmbassador ? (
             <Button onClick={() => setCreateOpen(true)}>
               <ApperIcon name="Plus" size={16} />
-              Propose a deal
+              Suggest a deal
             </Button>
           ) : null
         }
@@ -70,7 +70,7 @@ export default function ProposalsList() {
         <div className="rounded-[22px] bg-card shadow-sm p-8 text-center">
           <p className="font-medium text-foreground">No proposals here</p>
           {isAmbassador && (
-            <Button className="mt-3" onClick={() => setCreateOpen(true)}>Propose a deal</Button>
+            <Button className="mt-3" onClick={() => setCreateOpen(true)}>Suggest a deal</Button>
           )}
         </div>
       ) : (

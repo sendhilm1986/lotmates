@@ -3,7 +3,9 @@ import DotMeter from '@/components/DotMeter';
 import { cn } from '@/lib/utils';
 import { dealState, timeLeft, isOpen, inr } from '@/services/dealRules';
 
-export function progressCaption(st) {
+export function progressCaption(st, deal) {
+  if (deal?.status_c === 'Closed') return 'Went ahead';
+  if (deal?.status_c === 'Failed') return "Didn't reach the minimum";
   if (st.full) return 'Round full';
   if (!st.unlocked) return `${st.toMin} more to unlock`;
   if (st.next) return `${st.toNext} more for ${inr(st.next.price)}`;
@@ -19,14 +21,14 @@ export default function DealProgress({ deal, showCountdown = true, size = 'md', 
       <DotMeter deal={deal} size={size} />
       <div className="flex items-baseline justify-between gap-3 text-sm">
         <span className="font-medium tabular-nums text-foreground">{st.booked} booked</span>
-        <span className={cn('text-right', st.unlocked ? 'font-medium text-primary' : 'text-muted-foreground')}>{progressCaption(st)}</span>
+        <span className={cn('text-right', st.unlocked || deal?.status_c === 'Closed' ? 'font-medium text-primary' : 'text-muted-foreground')}>{progressCaption(st, deal)}</span>
       </div>
       {showCountdown && (
         <p className="flex justify-center pt-1">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] text-muted-foreground">
             <ApperIcon name="Clock" size={13} className="flex-none" />
             {open ? timeLeft(deal?.deadline_c) : deal?.status_c === 'Draft' ? 'Not published' : 'Closed'}
-            {st.min && !st.unlocked ? `, unlocks at ${st.min}` : ''}
+            {st.min && !st.unlocked && !['Closed', 'Failed'].includes(deal?.status_c) ? `, unlocks at ${st.min}` : ''}
           </span>
         </p>
       )}

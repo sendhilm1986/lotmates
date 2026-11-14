@@ -28,6 +28,9 @@ export const DEAL_STATUS_LABEL = {
   'Awaiting team': 'Waiting for the team',
   'Changes requested': 'Changes requested',
   Approved: 'Approved, not live yet',
+  Live: 'Open for bookings',
+  Closed: 'Went ahead',
+  Failed: "Didn't go ahead",
 };
 export const dealStatusLabel = (s) => DEAL_STATUS_LABEL[s] ?? s;
 // What each step of the review looks like on the timeline.

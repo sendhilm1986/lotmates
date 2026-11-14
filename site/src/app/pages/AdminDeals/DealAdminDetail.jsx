@@ -126,7 +126,12 @@ export default function DealAdminDetail() {
   const dueRows = rows.filter((b) => b.refundStatus_c === 'Due');
   const dueTotal = dueRows.reduce((s, b) => s + Number(b.refundDue_c || 0), 0);
   const activeBookings = rows.filter((b) => b.status_c !== 'Cancelled');
-  const commission = (st.current?.price ?? 0) * st.booked * (Number(deal.commission_c || 0) / 100);
+  const rate = Number(deal.commission_c || 0) / 100;
+  // Earned only once the deal has gone ahead: confirmed bookings at their final price.
+  const settled = ['Closed', 'Failed'].includes(deal.status_c);
+  const commission = settled
+    ? rows.filter((b) => ['Confirmed', 'Done'].includes(b.status_c)).reduce((s, b) => s + Number(b.finalPrice_c || 0) * Number(b.homes_c || 1), 0) * rate
+    : (st.current?.price ?? 0) * st.booked * rate;
 
   async function publish() {
     if (!deal.deadline_c || new Date(deal.deadline_c).getTime() <= Date.now()) {
@@ -210,7 +215,7 @@ export default function DealAdminDetail() {
     }
   }
 
-  const collected = activeBookings.reduce((sum, b) => sum + Number(b.amountPaid_c || 0), 0);
+  const collected = activeBookings.reduce((sum, b) => sum + Number(b.amountPaid_c || 0) - (b.refundStatus_c === 'Paid' ? Number(b.refundDue_c || 0) : 0), 0);
   const fmt = (v, f) => (v ? formatLocalDate(v, f) : '—');
 
   return (
@@ -346,8 +351,8 @@ export default function DealAdminDetail() {
             <Row label="Regular price">{inr(deal.regularPrice_c)}</Row>
             <Row label="Goes ahead at">{st.min} homes</Row>
             <Row label="Capacity">{st.cap || '—'}</Row>
-            <Row label="Collected">{inr(collected)}</Row>
-            <Row label="Commission">{deal.commission_c ?? 0}%, {inr(commission)} now</Row>
+            <Row label="Collected">{inr(collected)} after refunds</Row>
+            <Row label="Commission">{deal.commission_c ?? 0}%, {inr(commission)} {settled ? 'earned' : 'if it closes now'}</Row>
             <Row label="Closes">{fmt(deal.deadline_c, DATE_FORMATS.WITH_TIME)}</Row>
             <Row label="Service window">
               {fmt(deal.serviceStart_c, DATE_FORMATS.SHORT)} to {fmt(deal.serviceEnd_c, DATE_FORMATS.SHORT)}

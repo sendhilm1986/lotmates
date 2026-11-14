@@ -46,7 +46,7 @@ export default function Earnings() {
     <div className="space-y-8">
       <PageHeader
         title="Earnings"
-        description={`You get ${Math.round(AMBASSADOR_SHARE * 100)}% of Lotmates' commission on every job in your communities. Demo rate.`}
+        description={`You get ${Math.round(AMBASSADOR_SHARE * 100)}% of Lotmates' commission on every job in your communities.`}
       />
 
       <div className="grid grid-cols-2 gap-3">

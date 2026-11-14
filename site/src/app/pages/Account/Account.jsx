@@ -342,6 +342,10 @@ function CommunitiesSection({ me }) {
 
 // Pages that don't need their own menu item, kept one tap away.
 const MORE_LINKS = {
+  Ambassador_c: [
+    ['/bookings', 'Ticket', 'My bookings', 'Deals you booked for your own home, with payments and refunds.'],
+    ['/deals', 'Tag', 'Browse deals', 'Everything open in your locality right now.'],
+  ],
   Vendor_c: [
     ['/reviews', 'Star', 'Your reviews', 'What neighbours said about your jobs, and your rating.'],
     ['/complaints', 'MessageSquareWarning', 'Complaints', 'Problems neighbours raised about a job. Reply so the team can close them.'],

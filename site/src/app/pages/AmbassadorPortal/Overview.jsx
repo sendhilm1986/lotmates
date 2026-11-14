@@ -4,14 +4,14 @@ import { toast } from 'sonner';
 import { sdk } from '@/services/sdk';
 import { useFetch } from '@/hooks/useFetch';
 import ApperIcon from '@/components/ApperIcon';
-import PageHeader from '@/components/PageHeader';
+import { HomeHeader, NeedsYou, StatRow } from '@/components/RoleHome';
 import { ListSkeleton } from '@/components/PageSkeleton';
 import { Button } from '@/components/ui/button';
 import { DEAL_FIELDS, dealState, inr, timeLeft } from '@/services/dealRules';
 import { JOB_FIELDS, userIdOf, sameId, unwrapList } from '@/services/records';
 
 export const route = { path: '/ambassador', layout: 'owner', access: "profile === 'Ambassador_c'" };
-export const nav = { icon: 'Home', label: 'Communities', order: 5, profiles: ['Ambassador_c'] };
+export const nav = { icon: 'House', label: 'Home', order: 1, profiles: ['Ambassador_c'] };
 
 const { eq, isIn, and } = window.ApperSDK.CoreSDK;
 
@@ -48,6 +48,26 @@ export default function AmbassadorOverview() {
   const bookings = data?.bookings ?? [];
   const firstName = user?.firstName ?? '';
 
+  // Deals that close soon and still need people are the ones worth a nudge in the group.
+  const tasks = deals
+    .map((d) => ({ d, st: dealState(d), hours: Math.round((new Date(d.deadline_c).getTime() - Date.now()) / 36e5) }))
+    .filter(({ st, hours }) => hours <= 72 && (!st.unlocked || st.next))
+    .slice(0, 4)
+    .map(({ d, st, hours }) => ({
+      key: `share-${d.Id}`,
+      to: `/deals/${d.Id}`,
+      lead: hours < 24 ? `${Math.max(1, hours)}h` : `${Math.round(hours / 24)}d`,
+      tone: st.unlocked ? 'calm' : 'urgent',
+      title: d.Name,
+      note: st.unlocked ? `${st.toNext} more for ${inr(st.next.price)}. Share it` : `Needs ${st.toMin} more to go ahead. Share it`,
+      cta: 'Open',
+    }));
+  const stats = [
+    { label: 'Your communities', value: communities.length, sub: 'Linked to you by the team' },
+    { label: 'Deals open now', value: deals.length, sub: 'Ready to share below' },
+    { label: 'Bookings so far', value: bookings.filter((b) => !['Cancelled', 'Failed'].includes(b.status_c)).length, sub: 'See what you earned', to: '/ambassador/earnings' },
+  ];
+
   function share(deal) {
     const st = dealState(deal);
     const url = `${window.location.origin}/deals/${deal.Id}`;
@@ -66,18 +86,13 @@ export default function AmbassadorOverview() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title={firstName ? `Hi ${firstName}` : 'Your communities'}
-        description="Share live deals in your groups, and tell the team what neighbours want next."
-        actions={
-          <Button variant="outline" asChild>
-            <Link to="/proposals">
-              <ApperIcon name="Lightbulb" size={16} />
-              Propose a deal
-            </Link>
-          </Button>
-        }
-      />
+      <HomeHeader firstName={firstName} action={{ to: '/proposals', label: 'Suggest a deal', icon: 'Lightbulb' }} />
+      {communities.length > 0 && (
+        <>
+          <NeedsYou tasks={tasks} loading={false} empty="Nothing urgent. Share an open deal in your residents group to keep it moving." />
+          <StatRow stats={stats} loading={false} />
+        </>
+      )}
 
       {error ? (
         <div className="flex flex-col items-center gap-3 rounded-[22px] bg-card shadow-sm p-8 text-center">

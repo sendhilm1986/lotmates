@@ -190,7 +190,7 @@ export default function BookingsList() {
   const emptyOpen = !isAdmin && group === 'open' && !filtered;
   const stats = isAdmin
     ? [
-        { label: 'Paid in', value: inr(money?.paid ?? 0), hint: 'Before refunds' },
+        { label: 'Collected', value: inr(Math.max(0, Number(money?.paid ?? 0) - Number(money?.back ?? 0))), hint: `${inr(money?.paid ?? 0)} paid in, less refunds sent` },
         { label: 'Refunds due', value: inr(money?.due ?? 0), action: Number(money?.due) > 0 ? () => setRefund('Due') : null },
         { label: 'Refunds sent', value: inr(money?.back ?? 0) },
         { label: 'Open bookings', value: money?.open ?? 0 },

@@ -56,24 +56,26 @@ function useCollapsedGroups(user) {
   return [collapsed, save];
 }
 
-// The team's sections, grouped by the job they're for. Other roles have few enough to list flat.
-const ADMIN_GROUPS = [
-  { label: null, paths: ['/admin'] },
-  { label: 'Selling', paths: ['/admin/deals', '/admin/categories', '/bookings', '/payouts'] },
-  { label: 'Partners', paths: ['/admin/neighbours', '/admin/vendors', '/admin/vendor-applications', '/admin/communities', '/admin/ambassador-applications', '/proposals'] },
-  { label: 'Quality', paths: ['/reviews', '/complaints'] },
-  { label: 'Setup', paths: ['/admin/emails', '/admin/cities', '/admin/localities', '/admin/team', '/account'] },
+// The team's menu: six jobs. Each one opens its main page; the other pages of that job are tabs across the top.
+const ADMIN_SECTIONS = [
+  { label: 'Today', icon: 'LayoutDashboard', pages: [['/admin', 'Today']] },
+  { label: 'Deals', icon: 'Tag', pages: [['/admin/deals', 'Deals'], ['/proposals', 'Suggestions']] },
+  { label: 'Bookings', icon: 'Ticket', pages: [['/bookings', 'Bookings'], ['/reviews', 'Reviews'], ['/complaints', 'Complaints']] },
+  { label: 'Money', icon: 'Banknote', pages: [['/payouts', 'Vendor payouts']] },
+  { label: 'People', icon: 'Users', pages: [['/admin/vendors', 'Vendors'], ['/admin/neighbours', 'Neighbours'], ['/admin/communities', 'Communities'], ['/admin/vendor-applications', 'New vendors'], ['/admin/ambassador-applications', 'New ambassadors']] },
+  { label: 'Settings', icon: 'Settings', pages: [['/admin/categories', 'Categories'], ['/admin/cities', 'Cities'], ['/admin/localities', 'Localities'], ['/admin/emails', 'Emails'], ['/admin/team', 'Team'], ['/account', 'Your profile']] },
 ];
+// Only inboxes get a number: things waiting for someone to act.
+const INBOXES = ['/admin/vendor-applications', '/admin/ambassador-applications'];
 
-function groupForAdmin(items) {
-  const used = new Set();
-  const groups = ADMIN_GROUPS.map((g) => ({
-    label: g.label,
-    items: g.paths.map((p) => items.find((i) => i.to === p)).filter((i) => i && !used.has(i.to) && used.add(i.to)),
-  }));
-  const rest = items.filter((i) => !used.has(i.to));
-  if (rest.length) groups.push({ label: 'More', items: rest });
-  return groups.filter((g) => g.items.length);
+const pageMatches = (path, pathname) => Boolean(matchPath({ path, end: EXACT.includes(path) }, pathname));
+
+function sectionsForAdmin(items) {
+  const known = new Set(items.map((i) => i.to));
+  return ADMIN_SECTIONS.map((sec) => {
+    const pages = sec.pages.filter(([p]) => known.has(p));
+    return { to: pages[0]?.[0], label: sec.label, icon: sec.icon, match: pages.map(([p]) => p), pages };
+  }).filter((sec) => sec.to);
 }
 
 function profileLabel(profile) {
@@ -90,7 +92,10 @@ export default function OwnerLayout() {
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const isTeam = user?.profile === 'Admin_c';
-  const grouped = isTeam ? groupForAdmin(navItems) : navGroups.length ? navGroups : [{ label: null, items: navItems }];
+  const sections = isTeam ? sectionsForAdmin(navItems) : [];
+  const grouped = isTeam ? [{ label: null, items: sections }] : navGroups.length ? navGroups : [{ label: null, items: navItems }];
+  const section = sections.find((sec) => sec.match.some((p) => pageMatches(p, location.pathname)));
+  const badge = (item) => (item.match ? item.match.filter((p) => INBOXES.includes(p)).reduce((n, p) => n + (Number(counts[p]) || 0), 0) : isTeam ? 0 : Number(counts[item.to]) || 0);
   const ordered = grouped.flatMap((g) => g.items);
   const hasMore = ordered.length > 5;
   const tabs = hasMore ? ordered.slice(0, 4) : ordered;
@@ -101,7 +106,7 @@ export default function OwnerLayout() {
   }, [location.pathname]);
 
   const [collapsed, saveCollapsed] = useCollapsedGroups(user);
-  const isActiveItem = (item) => Boolean(matchPath({ path: item.to, end: EXACT.includes(item.to) }, location.pathname));
+  const isActiveItem = (item) => (item.match ? item.match.some((p) => pageMatches(p, location.pathname)) : pageMatches(item.to, location.pathname));
   const activeGroup = grouped.find((g) => g.label && g.items.some(isActiveItem))?.label ?? null;
   // The group holding the page you're on opens when you arrive, without changing your saved choice.
   const [peek, setPeek] = useState(activeGroup);
@@ -133,8 +138,9 @@ export default function OwnerLayout() {
       key={item.to}
       to={item.to}
       end={EXACT.includes(item.to)}
-      className={({ isActive }) =>
-        cn(
+      className={({ isActive: here }) => {
+        const isActive = item.match ? isActiveItem(item) : here;
+        return cn(
           'relative flex min-h-[38px] items-center gap-3 rounded-xl px-3 text-[15px] transition-colors duration-(--transition-fast) focus-visible:outline-none focus-visible:ring-2',
           dark
             ? isActive
@@ -143,19 +149,19 @@ export default function OwnerLayout() {
             : isActive
               ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground focus-visible:ring-ring'
               : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 focus-visible:ring-ring',
-        )
-      }
+        );
+      }}
     >
-      {({ isActive }) => (
+      {({ isActive: here }) => { const isActive = item.match ? isActiveItem(item) : here; return (
         <>
           {isActive && dark && <span aria-hidden className="absolute -left-3 top-2 bottom-2 w-1 rounded-r-full bg-highlight" />}
           <ApperIcon name={item.icon ?? 'Circle'} size={17} className={dark ? (isActive ? 'text-highlight' : 'text-white/50') : ''} />
           <span className="flex-1 truncate">{item.label}</span>
-          {counts[item.to] != null && Number(counts[item.to]) > 0 && (
-            <span className={cn('text-xs tabular-nums', dark ? 'text-white/45' : 'text-muted-foreground')}>{counts[item.to]}</span>
+          {badge(item) > 0 && (
+            <span className={cn('rounded-full px-1.5 text-xs tabular-nums', dark ? 'bg-highlight/20 text-white' : 'bg-primary/10 text-primary')}>{badge(item)}</span>
           )}
         </>
-      )}
+      ); }}
     </NavLink>
   );
 
@@ -260,6 +266,28 @@ export default function OwnerLayout() {
 
       <main className="pb-28 lg:pb-0 lg:pl-(--spacing-sidebar)">
         <div className="mx-auto w-full max-w-6xl px-5 py-7 md:px-10 md:py-10">
+          {section && section.pages.length > 1 && (
+            <nav aria-label={`${section.label} pages`} className="-mx-1 mb-7 flex gap-1 overflow-x-auto px-1 pb-1">
+              {section.pages.map(([p, label]) => {
+                const on = pageMatches(p, location.pathname);
+                const n = INBOXES.includes(p) ? Number(counts[p]) || 0 : 0;
+                return (
+                  <Link
+                    key={p}
+                    to={p}
+                    aria-current={on ? 'page' : undefined}
+                    className={cn(
+                      'flex min-h-10 flex-none items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      on ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground shadow-sm hover:text-foreground',
+                    )}
+                  >
+                    {label}
+                    {n > 0 && <span className={cn('rounded-full px-1.5 text-xs tabular-nums', on ? 'bg-white/20' : 'bg-primary/10 text-primary')}>{n}</span>}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
@@ -276,20 +304,20 @@ export default function OwnerLayout() {
               key={item.to}
               to={item.to}
               end={EXACT.includes(item.to)}
-              className={({ isActive }) =>
+              className={({ isActive: here }) =>
                 cn(
                   'relative flex min-h-16 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium',
-                  isActive ? 'text-primary' : 'text-muted-foreground',
+                  (item.match ? isActiveItem(item) : here) ? 'text-primary' : 'text-muted-foreground',
                 )
               }
             >
-              {({ isActive }) => (
+              {({ isActive: here }) => { const isActive = item.match ? isActiveItem(item) : here; return (
                 <>
                   {isActive && <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-primary" />}
                   <ApperIcon name={item.icon ?? 'Circle'} size={21} />
                   <span className="max-w-full truncate">{item.label}</span>
                 </>
-              )}
+              ); }}
             </NavLink>
           ))}
           {hasMore && (
