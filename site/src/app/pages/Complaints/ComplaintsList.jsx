@@ -15,7 +15,7 @@ import { COMPLAINT_FIELDS, COMPLAINT_STATUS, COMPLAINT_STYLES, unwrapList } from
 import ComplaintDialog from './ComplaintDialog';
 
 export const route = { path: '/complaints', layout: 'owner', access: "['Admin_c','Vendor_c','Customer_c'].includes(profile)" };
-export const nav = { icon: 'MessageSquareWarning', label: 'Complaints', order: 71, profiles: ['Admin_c', 'Vendor_c'] };
+export const nav = { icon: 'MessageSquareWarning', label: 'Complaints', order: 71, profiles: ['Admin_c'] };
 
 const { eq } = window.ApperSDK.CoreSDK;
 

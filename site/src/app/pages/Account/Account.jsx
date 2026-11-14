@@ -342,6 +342,10 @@ function CommunitiesSection({ me }) {
 
 // Pages that don't need their own menu item, kept one tap away.
 const MORE_LINKS = {
+  Vendor_c: [
+    ['/reviews', 'Star', 'Your reviews', 'What neighbours said about your jobs, and your rating.'],
+    ['/complaints', 'MessageSquareWarning', 'Complaints', 'Problems neighbours raised about a job. Reply so the team can close them.'],
+  ],
   Customer_c: [
     ['/complaints', 'MessageSquareWarning', 'Report a problem', 'Something went wrong with a booking? Tell us and follow the reply.'],
     ['/reviews', 'Star', 'Reviews', 'What your neighbours said about the vendors. Rate your own jobs from each booking.'],

@@ -12,7 +12,7 @@ import { DEAL_FIELDS, DEAL_STYLES, dealState, dealStatusLabel, dealWhere, inr, t
 import { VENDOR_PUBLIC_FIELDS, userIdOf, unwrapList } from '@/services/records';
 
 export const route = { path: '/vendor/deals', layout: 'owner', access: "profile === 'Vendor_c'" };
-export const nav = { icon: 'Tag', label: 'My deals', order: 6, profiles: ['Vendor_c'] };
+export const nav = { icon: 'Tag', label: 'Deals', order: 6, profiles: ['Vendor_c'] };
 
 const { eq } = window.ApperSDK.CoreSDK;
 
@@ -42,7 +42,7 @@ export default function VendorDeals() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="My deals"
+        title="Deals"
         description={vendor ? vendor.Name : 'Deals you deliver through Lotmates.'}
         actions={
           vendor ? (

@@ -16,7 +16,7 @@ export default function VendorDealView() {
     <Button variant="ghost" size="sm" asChild className="-ml-2">
       <Link to="/vendor/deals">
         <ApperIcon name="ArrowLeft" size={16} />
-        Back to My deals
+        Back to Deals
       </Link>
     </Button>
   );

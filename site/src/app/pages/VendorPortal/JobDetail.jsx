@@ -67,7 +67,7 @@ export default function JobDetail() {
     return sdk.table('complaints_c').select(COMPLAINT_FIELDS).where(eq('booking_c', id)).fetch().then(unwrapList);
   }, [id]);
 
-  const back = { to: '/vendor', label: 'Back to Jobs' };
+  const back = { to: '/vendor/jobs', label: 'Back to Jobs' };
 
   if (loading && job === undefined) {
     return (

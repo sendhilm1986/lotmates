@@ -60,7 +60,9 @@ export function useOwnerLayoutData() {
     const items = discoveredNavItems
       .filter((item) => !item.profiles || item.profiles.includes(user?.profile))
       // For everyone but the team, the bookings page holds only their own.
-      .map((item) => (mine && item.to === '/bookings' ? { ...item, label: 'My bookings' } : item));
+      .map((item) => (mine && item.to === '/bookings' ? { ...item, label: 'My bookings' } : item))
+      // A vendor's payouts are simply their money.
+      .map((item) => (user?.profile === 'Vendor_c' && item.to === '/payouts' ? { ...item, label: 'Money' } : item));
     // Neighbours land in their bookings; a Deals tab keeps booking one tap away.
     if (user?.profile !== 'Customer_c') return items;
     const deals = { icon: 'Tag', label: 'Deals', order: 5, to: '/deals', path: '/deals', href: '/deals' };

@@ -46,7 +46,7 @@ const FOOTER_COLUMNS = [
 
 const HOME = {
   Admin_c: ['/admin', 'Admin dashboard'],
-  Vendor_c: ['/vendor', 'My jobs'],
+  Vendor_c: ['/vendor', 'My portal'],
   Ambassador_c: ['/ambassador', 'My communities'],
 };
 

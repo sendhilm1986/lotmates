@@ -136,6 +136,15 @@ export function validateDeal(form, mode = 'admin') {
   return e;
 }
 
+const STEPS = ['What', 'Price', 'Where', 'When'];
+// Which step each validation message belongs to.
+const STEP_FIELDS = [
+  ['Name', 'vendor_c', 'video_c'],
+  ['tiers', 'minHomes_c', 'capacity_c'],
+  ['city_c', 'locality_c', 'community_c'],
+  ['deadline_c', 'serviceEnd_c', 'pickupAddress_c', 'timeSlots_c', 'slotCapacity_c'],
+];
+
 function Field({ label, htmlFor, error, children, hint }) {
   return (
     <div className="grid gap-1.5">
@@ -147,9 +156,9 @@ function Field({ label, htmlFor, error, children, hint }) {
   );
 }
 
-function Section({ title, description, children }) {
+function Section({ title, description, children, step, cur }) {
   return (
-    <section className="grid gap-4 rounded-[22px] bg-card shadow-sm p-5 shadow-sm md:grid-cols-[14rem_1fr]">
+    <section hidden={step !== undefined && step !== cur} className="grid gap-4 [&[hidden]]:hidden rounded-[22px] bg-card shadow-sm p-5 shadow-sm md:grid-cols-[14rem_1fr]">
       <div>
         <h2 className="font-heading text-base font-bold text-foreground">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
@@ -198,12 +207,28 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
   };
   const delivery = ['delivery', 'both'].includes(form.fulfilment_c);
 
+  // The form is filled in four short steps. Editing an existing deal can jump between them freely.
+  const editing = Boolean(initial?.Name);
+  const [step, setStep] = useState(1);
+  const stepOf = (key) => STEP_FIELDS.findIndex((keys) => keys.includes(key)) + 1 || 1;
+  function toStep(n) {
+    setStep(n);
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  }
+  function next() {
+    const all = validateDeal(form, mode);
+    const here = Object.fromEntries(Object.entries(all).filter(([k]) => stepOf(k) === step));
+    setErrors(here);
+    if (!Object.keys(here).length) toStep(step + 1);
+  }
+
   // intent: 'save' keeps a draft; any other action also needs the deal to be complete (a closing time included).
   function go(intent = 'save') {
     const errs = validateDeal(form, mode);
     if (intent !== 'save' && !form.deadline_c) errs.deadline_c = 'Set when bookings close before this step';
     setErrors(errs);
     if (Object.keys(errs).length) {
+      setStep(Math.min(...Object.keys(errs).map(stepOf)));
       requestAnimationFrame(() => document.querySelector('form [aria-invalid="true"], form .text-destructive')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
       return;
     }
@@ -216,7 +241,30 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <Section title="Basics" description="What neighbours see first.">
+      <ol className="grid grid-cols-4 gap-2" aria-label="Steps">
+        {STEPS.map((label, i) => {
+          const n = i + 1;
+          const can = editing || n <= step;
+          return (
+            <li key={label}>
+              <button
+                type="button"
+                disabled={!can}
+                aria-current={step === n ? 'step' : undefined}
+                onClick={() => toStep(n)}
+                className={cn(
+                  'flex w-full flex-col gap-1.5 rounded-xl px-1 py-1 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  step === n ? 'text-foreground' : can ? 'text-muted-foreground hover:text-foreground' : 'text-muted-foreground/50',
+                )}
+              >
+                <span className={cn('h-1.5 rounded-full', n <= step ? 'bg-primary' : 'bg-border')} />
+                <span className="truncate"><span className="tabular-nums">{n}.</span> {label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <Section step={1} cur={step} title="Basics" description="What neighbours see first.">
         <Field label="Deal title" htmlFor="df-name" error={errors.Name}>
           <Input id="df-name" value={form.Name} onChange={set('Name')} placeholder="e.g. Deep cleaning, 2BHK" autoFocus />
         </Field>
@@ -240,18 +288,6 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
               </div>
             )}
           </Field>
-          {!vendorMode && (
-            <Field label="Status" hint="Use the buttons below to send a deal for review. Changing this by hand skips the vendor's confirmation.">
-              <Select value={form.status_c} onValueChange={set('status_c')}>
-                <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DEAL_STATUS.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
         </div>
         {!vendorMode && (
           <Field label="Vendor" error={errors.vendor_c}>
@@ -260,7 +296,7 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         )}
       </Section>
 
-      <Section title="Photos and video" description="The first photo is the cover. Add up to 8 that show the work: the crew, the equipment, before and after. A short caption under each explains it.">
+      <Section step={1} cur={step} title="Photos and video" description="The first photo is the cover. Add up to 8 that show the work: the crew, the equipment, before and after. A short caption under each explains it.">
         <PhotoManager value={form.gallery_c} onChange={(v) => setForm((f) => ({ ...f, gallery_c: v }))} dealName={form.Name} />
         <Field label="Video (optional)" htmlFor="df-video" error={errors.video_c} hint="A YouTube or Vimeo link. It shows right after the cover photo. Leave empty if the deal doesn't need one.">
           <div className="flex items-center gap-3">
@@ -270,7 +306,7 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         </Field>
       </Section>
 
-      <Section title="Who can book" description="Choose how far this deal reaches.">
+      <Section step={3} cur={step} title="Who can book" description="Choose how far this deal reaches.">
         <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Who can book">
           {[
             ['community', 'One community', 'A single apartment complex or gated community.'],
@@ -327,7 +363,7 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         </div>
       </Section>
 
-      <Section title="What's included" description="One line per item. Short and specific.">
+      <Section step={1} cur={step} title="What's included" description="One line per item. Short and specific.">
         <Field label="What's included" htmlFor="df-desc">
           <Textarea id="df-desc" rows={4} value={form.description_c} onChange={set('description_c')} placeholder={'Full home deep clean by a 3-person crew\nKitchen degreasing and bathroom descaling'} />
         </Field>
@@ -341,7 +377,7 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         </div>
       </Section>
 
-      <Section title="Price tiers" description="Agreed with the vendor in writing. Each tier must be cheaper than the last.">
+      <Section step={2} cur={step} title="Price tiers" description="Agreed with the vendor in writing. Each tier must be cheaper than the last.">
         <div className="grid gap-3">
           <div className="grid grid-cols-[4rem_1fr_1fr] gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <span>Tier</span>
@@ -364,7 +400,7 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         </div>
       </Section>
 
-      <Section title="Rules" description="The minimum unlocks the deal. The cap protects the vendor's capacity.">
+      <Section step={2} cur={step} title="Rules" description="The minimum unlocks the deal. The cap protects the vendor's capacity.">
         <Field label="Repeat bookings" hint="Quantity on one booking always covers several homes, people or units.">
           <Select value={form.allowRepeat_c} onValueChange={(v) => { setRepeatTouched(true); set('allowRepeat_c')(v); }}>
             <SelectTrigger aria-label="Repeat bookings"><SelectValue /></SelectTrigger>
@@ -396,7 +432,7 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         </div>
       </Section>
 
-      <Section title="Dates and scheduling" description="When bookings close, when the work happens, and what neighbours choose at checkout.">
+      <Section step={4} cur={step} title="Dates and scheduling" description="When bookings close, when the work happens, and what neighbours choose at checkout.">
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Bookings close" htmlFor="df-deadline" error={errors.deadline_c}>
             <Input id="df-deadline" type="datetime-local" value={form.deadline_c} onChange={set('deadline_c')} />
@@ -478,9 +514,32 @@ export default function DealForm({ initial, saving, submitLabel, onSubmit, onCan
         )}
       </Section>
 
-      <div className="sticky bottom-0 z-(--z-base) -mx-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-(--radius) md:border">
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
-        {(actions ?? [{ intent: 'save', label: submitLabel, variant: 'default' }]).map((a) => (
+      {step === 4 && !editing && (
+        <section className="rounded-[22px] bg-primary/[0.05] p-5">
+          <h2 className="font-heading text-base font-bold text-foreground">Check before you send</h2>
+          <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            {[
+              ['Deal', form.Name || '—'],
+              ['Category', categoryLabel(form.category_c)],
+              ['Prices', [1, 2, 3, 4].filter((n) => form[`tier${n}Price_c`] !== '' && form[`tier${n}Price_c`] != null).map((n) => `₹${Number(form[`tier${n}Price_c`]).toLocaleString('en-IN')}`).join(' → ') || '—'],
+              ['Goes ahead at', form.minHomes_c ? `${form.minHomes_c} bookings` : '—'],
+              ['Open to', form.reach === 'city' ? 'A whole city' : form.reach === 'community' ? 'One community' : 'A locality'],
+              ['Bookings close', form.deadline_c ? new Date(form.deadline_c).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not set yet'],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-3 border-b border-border/60 py-1.5">
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="min-w-0 truncate text-right font-medium text-foreground">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
+      <div className="sticky bottom-0 z-(--z-base) -mx-4 flex flex-wrap justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-(--radius) md:border">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={saving} className="mr-auto">Cancel</Button>
+        {step > 1 && <Button type="button" variant="outline" onClick={() => toStep(step - 1)} disabled={saving}>Back</Button>}
+        {step < 4 && <Button type="button" variant={editing ? 'outline' : 'default'} onClick={next} disabled={saving}>Next: {STEPS[step]}</Button>}
+        {(step === 4 || editing) && (actions ?? [{ intent: 'save', label: submitLabel, variant: 'default' }]).map((a) => (
           <Button key={a.intent} type="button" variant={a.variant ?? 'default'} disabled={saving} onClick={() => go(a.intent)}>
             {saving ? (
               <>

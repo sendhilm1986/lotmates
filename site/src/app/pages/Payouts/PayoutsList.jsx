@@ -56,7 +56,7 @@ export default function PayoutsList() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Payouts"
+        title={isAdmin ? 'Payouts' : 'Money'}
         description={isAdmin ? 'Money sent to vendors after commission.' : 'What Lotmates has paid you, and what is on its way.'}
         actions={
           isAdmin ? (

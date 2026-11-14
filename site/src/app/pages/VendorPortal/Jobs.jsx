@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { JOB_FIELDS, unwrapList } from '@/services/records';
 
-export const route = { path: '/vendor', layout: 'owner', access: "profile === 'Vendor_c'" };
-export const nav = { icon: 'CalendarCheck', label: 'Jobs', order: 5, profiles: ['Vendor_c'] };
+export const route = { path: '/vendor/jobs', layout: 'owner', access: "profile === 'Vendor_c'" };
+export const nav = { icon: 'CalendarCheck', label: 'Jobs', order: 7, profiles: ['Vendor_c'] };
 
 const { isIn } = window.ApperSDK.CoreSDK;
 
