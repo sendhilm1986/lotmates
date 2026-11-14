@@ -59,7 +59,7 @@ function useCollapsedGroups(user) {
 // The team's sections, grouped by the job they're for. Other roles have few enough to list flat.
 const ADMIN_GROUPS = [
   { label: null, paths: ['/admin'] },
-  { label: 'Selling', paths: ['/admin/deals', '/bookings', '/payouts'] },
+  { label: 'Selling', paths: ['/admin/deals', '/admin/categories', '/bookings', '/payouts'] },
   { label: 'Partners', paths: ['/admin/neighbours', '/admin/vendors', '/admin/vendor-applications', '/admin/communities', '/admin/ambassador-applications', '/proposals'] },
   { label: 'Quality', paths: ['/reviews', '/complaints'] },
   { label: 'Setup', paths: ['/admin/emails', '/admin/cities', '/admin/localities', '/admin/team', '/account'] },
