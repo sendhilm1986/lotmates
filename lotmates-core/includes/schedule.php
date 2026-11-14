@@ -60,7 +60,7 @@ function lm_schedule_line($booking, $deal)
     if ($mode !== 'none' && !empty($booking['preferredDate_c'])) {
         $day = lm_ist_date($booking['preferredDate_c'], 'l j M');
         $slot = $mode === 'datetime' && !empty($booking['preferredSlot_c']) ? ', ' . lcfirst($booking['preferredSlot_c']) : '';
-        return ($delivery ? 'Delivery on ' : ($pickup ? 'Pickup on ' : 'Preferred: ')) . $day . $slot . $where;
+        return ($delivery ? 'Delivery on ' . $day . $slot : ($pickup ? 'Pickup on ' . $day . $slot : $day . $slot . ' (the day you picked)')) . $where;
     }
     if ($mode !== 'none') {
         return ($delivery ? 'Delivery any day' : ($pickup ? 'Pickup any day' : 'Any day')) . $where . ($window ? ' ' . $window : '') . '. The vendor confirms the time with you.';

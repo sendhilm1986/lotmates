@@ -97,7 +97,7 @@ function lm_email_catalogue()
             'tags' => array_merge($b, ['service_date', 'time_slot', 'phone']),
             'subject' => 'Reminder: {deal_name} on {service_date}',
             'heading' => 'See you soon',
-            'body' => "Hi {first_name},\n\nA reminder about {deal_name} with {vendor_name}.\n\n- When: {schedule}\n- Address: {address}\n- They'll call: {phone}\n\nNeed a different day? Reply to this email and we'll sort it out.",
+            'body' => "Hi {first_name},\n\nA reminder about {deal_name} with {vendor_name}.\n\n- When: {schedule}\n- Where: {address}\n- {vendor_name} will call you on {phone}\n\nNeed a different day? Reply to this email and we'll sort it out.",
             'button' => 'View your booking', 'link' => '{booking_link}',
             'footnote' => 'Booking {booking_ref}.',
         ],
@@ -541,7 +541,15 @@ function lm_email_ctx_user($user)
         return [];
     }
     $name = trim($user->first_name . ' ' . $user->last_name) ?: $user->display_name;
-    return ['first_name' => $user->first_name ?: strtok($name, ' '), 'name' => $name, 'email' => $user->user_email, 'user_id' => $user->ID];
+    // Without a real first name, don't greet people by their login or email name.
+    $first = trim((string) $user->first_name);
+    if ($first === '') {
+        $guess = strtok($name, ' ');
+        $login = strtolower((string) $user->user_login);
+        $mailname = strtolower(strtok((string) $user->user_email, '@'));
+        $first = ($guess && !in_array(strtolower($guess), [$login, $mailname], true) && !preg_match('/\d|@/', $guess)) ? $guess : 'there';
+    }
+    return ['first_name' => $first, 'name' => $name, 'email' => $user->user_email, 'user_id' => $user->ID];
 }
 
 function lm_email_ctx_deal($deal)
@@ -577,6 +585,33 @@ function lm_email_ctx_deal($deal)
     ];
 }
 
+/**
+ * Where the booking happens, written out in full for emails: the house or flat and street the
+ * neighbour typed, then their community, locality and city. A pickup shows where to collect from.
+ */
+function lm_booking_address($b, $deal = null)
+{
+    if ($deal && lm_booking_mode($deal, $b) === 'pickup') {
+        return trim((string) ($deal['pickupAddress_c'] ?? '')) ?: 'The vendor will share the pickup address';
+    }
+    $parts = [trim((string) ($b['address_c'] ?? ''))];
+    $community = !empty($b['community_c']) ? lm_row('communities_c', (int) $b['community_c']) : null;
+    $locality_id = !empty($b['locality_c']) ? $b['locality_c'] : ($community['locality_c'] ?? null);
+    $locality = $locality_id ? lm_row('localities_c', (int) $locality_id) : null;
+    $city = !empty($locality['city_c']) ? lm_row('cities_c', (int) $locality['city_c']) : null;
+    foreach ([$community['Name'] ?? '', $locality['Name'] ?? '', $city['Name'] ?? ''] as $p) {
+        // Skip a name the neighbour already typed into their address.
+        if ($p !== '' && stripos($parts[0], $p) === false) {
+            $parts[] = $p;
+        }
+    }
+    $line = implode(', ', array_filter($parts));
+    if (!empty($locality['pincode_c']) && strpos($line, (string) $locality['pincode_c']) === false) {
+        $line .= ' ' . $locality['pincode_c'];
+    }
+    return $line;
+}
+
 function lm_email_ctx_booking($b)
 {
     $deal = $b['deal_c'] ? lm_row('deals_c', $b['deal_c']) : null;
@@ -595,7 +630,7 @@ function lm_email_ctx_booking($b)
         'service_date' => $b['preferredDate_c'] ? lm_ist_date($b['preferredDate_c'], 'l j M') : 'the agreed day',
         'time_slot' => $b['preferredSlot_c'] ?: '',
         'schedule' => $deal ? lm_schedule_line($b, $deal) : '',
-        'address' => $b['address_c'] ?: '',
+        'address' => lm_booking_address($b, $deal),
         'phone' => $b['phone_c'] ?: '',
         'invoice_number' => $b['invoiceNo_c'] ?: '',
     ], $community ? ['community' => $community['Name']] : []);
@@ -860,8 +895,8 @@ function lm_email_sample_ctx($event, $user)
         'more_needed' => 4, 'booked_count' => 27, 'minimum' => 10, 'community' => 'Green Meadows Apartments', 'locality' => 'Lakeview',
         'vendor_name' => 'Sparkle Home Care', 'closes_on' => lm_email_date(gmdate('Y-m-d H:i:s', time() + 3 * 86400)),
         'total' => '₹5,798', 'refund' => '₹1,200', 'invoice_number' => lm_invoice_settings()['prefix'] . '/' . lm_fy() . '/0042',
-        'service_date' => lm_ist_date(gmdate('Y-m-d', time() + 86400), 'l j M'), 'address' => 'B-402, Tower 2', 'phone' => '+91 98765 43210',
-        'time_slot' => 'Morning, 8 am to 12 pm', 'schedule' => 'Preferred: ' . lm_ist_date(gmdate('Y-m-d', time() + 86400), 'l j M') . ', morning, 8 am to 12 pm',
+        'service_date' => lm_ist_date(gmdate('Y-m-d', time() + 86400), 'l j M'), 'address' => 'B-402, Tower 2, Prestige Lakeside, Kovaipudur, Coimbatore 641042', 'phone' => '+91 98765 43210',
+        'time_slot' => 'Morning, 8 am to 12 pm', 'schedule' => lm_ist_date(gmdate('Y-m-d', time() + 86400), 'l j M') . ', morning, 8 am to 12 pm (the day you picked)',
         'jobs_link' => LM_SITE_URL . '/vendor', 'outcome' => 'went ahead', 'refunds_total' => '₹18,400',
         'review_link' => LM_SITE_URL . '/vendor/deals', 'note' => 'Please lower the minimum to 8 homes.',
         'payout_amount' => '₹42,500', 'payout_reference' => 'UTR 4021 7781', 'payouts_link' => LM_SITE_URL . '/payouts',

@@ -240,6 +240,8 @@ function lm_fn_create_order(WP_REST_Request $r)
         $address = $address !== '' ? $address : 'Pickup';
     } elseif ($address === '' || strlen($address) > 300) {
         return lm_err($mode_f === 'delivery' ? 'Add the address to deliver to.' : 'Add the address where the service happens.');
+    } elseif (mb_strlen($address) < 8 || !preg_match('/\pL/u', $address)) {
+        return lm_err('Add the full address: house or flat number and street, so the vendor can find you.');
     }
     if (!preg_match('/^[+\d][\d\s-]{8,20}$/', $phone)) {
         return lm_err('Add a phone number we can reach.');

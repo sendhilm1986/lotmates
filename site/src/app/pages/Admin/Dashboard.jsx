@@ -75,17 +75,36 @@ export default function Dashboard() {
       .aggregate([
         { id: 'week', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where: relativeMatch('CreatedOn', 'this week') },
         { id: 'collected', fields: [{ field: 'amountPaid_c', fn: 'Sum', alias: 'count' }], where: isIn('paymentStatus_c', ['Paid', 'Refunded']) },
+        { id: 'refunded', fields: [{ field: 'refundDue_c', fn: 'Sum', alias: 'count' }], where: eq('refundStatus_c', 'Paid') },
         { id: 'due', fields: [{ field: 'refundDue_c', fn: 'Sum', alias: 'count' }], where: eq('refundStatus_c', 'Due') },
         { id: 'dueCount', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where: eq('refundStatus_c', 'Due') },
       ])
       .limit(1)
       .fetch();
     if (!b.success) throw new Error(b.message);
+    // Our commission is a cut of the money actually kept: each paid booking, less what was refunded, at its deal's rate.
+    const paid = await sdk
+      .table('bookings_c')
+      .select(['amountPaid_c', 'refundDue_c', 'refundStatus_c', 'deal_c'])
+      .where(eq('paymentStatus_c', 'Paid'))
+      .page(1, 5000)
+      .fetch();
+    const dealIds = [...new Set((paid.data ?? []).map((x) => x.deal_c?.Id).filter(Boolean))];
+    const rates = {};
+    if (dealIds.length) {
+      const dr = await sdk.table('deals_c').select(['commission_c']).where(isIn('Id', dealIds)).page(1, dealIds.length).fetch();
+      for (const d of dr.data ?? []) rates[d.Id] = Number(d.commission_c || 0) / 100;
+    }
+    const commission = (paid.data ?? []).reduce((sum, x) => {
+      const kept = Number(x.amountPaid_c || 0) - (x.refundStatus_c === 'Paid' ? Number(x.refundDue_c || 0) : 0);
+      return sum + Math.max(0, kept) * (rates[x.deal_c?.Id] ?? 0);
+    }, 0);
     return {
+      commission: Math.round(commission),
       live: pick(d, 'live'),
       draft: pick(d, 'draft'),
       week: pick(b, 'week'),
-      collected: pick(b, 'collected'),
+      collected: Math.max(0, Number(pick(b, 'collected')) - Number(pick(b, 'refunded'))),
       due: pick(b, 'due'),
       dueCount: pick(b, 'dueCount'),
     };
@@ -133,10 +152,6 @@ export default function Dashboard() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = sdk.session.user()?.firstName;
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-  const projected = deals.reduce((sum, d) => {
-    const st = dealState(d);
-    return sum + (st.unlocked ? (st.current?.price ?? 0) * st.booked * (Number(d.commission_c || 0) / 100) : 0);
-  }, 0);
 
   // Each item leads with the thing you'd scan for: an amount, a count or the time left.
   const tasks = [];
@@ -181,7 +196,7 @@ export default function Dashboard() {
   const summary = [
     { label: 'Live deals', value: kpi?.live ?? 0, sub: `${kpi?.draft ?? 0} in draft` },
     { label: 'Bookings this week', value: kpi?.week ?? 0, sub: 'Since Monday' },
-    { label: 'Collected', value: inr(kpi?.collected ?? 0), sub: `${inr(projected)} commission so far` },
+    { label: 'Collected', value: inr(kpi?.collected ?? 0), sub: `${inr(kpi?.commission ?? 0)} is our commission, after refunds` },
     { label: 'Refunds due', value: inr(kpi?.due ?? 0), sub: kpi?.dueCount ? `${kpi.dueCount} to send` : 'All sent' },
   ];
 

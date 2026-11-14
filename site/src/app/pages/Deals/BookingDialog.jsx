@@ -204,7 +204,8 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
   function validate() {
     const e = {};
     if (!deal?.community_c?.Id && !localityValue && !(pickup && deal?.city_c?.Id)) e.locality = 'Pick your locality';
-    if (!pickup && !form.address.trim()) e.address = delivery ? 'Add the full address to deliver to' : 'Add the flat or house number';
+    if (!pickup && !form.address.trim()) e.address = delivery ? 'Add the full address to deliver to' : 'Add the address where the service happens';
+    else if (!pickup && (form.address.trim().length < 8 || !/\p{L}/u.test(form.address))) e.address = 'Add the house or flat number and the street, so the vendor can find you';
     if (!/^[+\d][\d\s-]{8,}$/.test(form.phone.trim())) e.phone = 'Add a phone number the vendor can call';
     if (form.preferredDate && deal?.serviceStart_c && form.preferredDate < deal.serviceStart_c) e.preferredDate = 'Pick a date inside the service window';
     if (form.preferredDate && deal?.serviceEnd_c && form.preferredDate > deal.serviceEnd_c) e.preferredDate = 'Pick a date inside the service window';
@@ -721,7 +722,7 @@ export default function BookingDialog({ open, onOpenChange, deal, onBooked }) {
                     {!pickup && (
                       <div>
                         <label htmlFor="bk-address" className="sr-only">Address</label>
-                        <Input id="bk-address" autoComplete="address-line1" aria-invalid={Boolean(errors.address)} value={form.address} onChange={set('address')} placeholder={delivery ? 'House or flat number, street, landmark' : 'House or flat number, street'} className="h-11" />
+                        <Input id="bk-address" autoComplete="address-line1" aria-invalid={Boolean(errors.address)} value={form.address} onChange={set('address')} placeholder={delivery ? 'House or flat number, street, landmark' : 'House or flat number, street, landmark'} className="h-11" />
                         {fieldError('address')}
                       </div>
                     )}
