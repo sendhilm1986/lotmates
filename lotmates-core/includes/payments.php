@@ -559,7 +559,12 @@ add_action('lm_hourly', function () {
     global $wpdb;
     $ids = $wpdb->get_col('SELECT Id FROM ' . lm_table('deals_c') . " WHERE status_c = 'Live' AND deadline_c < UTC_TIMESTAMP()");
     foreach ($ids as $id) {
+        lm_deal_recount((int) $id); // close on the real count
         lm_close_deal((int) $id);
+    }
+    // Keep open deals' booked counts honest.
+    foreach ($wpdb->get_col('SELECT Id FROM ' . lm_table('deals_c') . " WHERE status_c = 'Live'") as $id) {
+        lm_deal_recount((int) $id);
     }
     $pending = $wpdb->get_col('SELECT orderRef_c FROM ' . lm_table('bookings_c') . " WHERE paymentStatus_c = 'Pending' AND orderRef_c IS NOT NULL");
     foreach ($pending as $order) {

@@ -535,6 +535,8 @@ const categories = {
 };
 
 export const sdk = {
+  // Team only: the Today page's counts and money, from the server.
+  adminStats: () => accountCall('/admin/stats', undefined, 'GET'),
   categories,
   dealFlow,
   availability,

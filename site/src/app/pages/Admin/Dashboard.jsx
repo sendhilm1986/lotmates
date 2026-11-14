@@ -58,55 +58,15 @@ function DemoSeedCard() {
 }
 
 export default function Dashboard() {
+  // Every number on this page comes from the server, worked out from the bookings themselves.
   const { data: kpi, error: kpiError, run: refetchKpi } = useFetch(async () => {
-    const d = await sdk
-      .table('deals_c')
-      .select([{ field: 'Id' }])
-      .aggregate([
-        { id: 'live', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where: eq('status_c', 'Live') },
-        { id: 'draft', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where: eq('status_c', 'Draft') },
-      ])
-      .limit(1)
-      .fetch();
-    if (!d.success) throw new Error(d.message);
-    const b = await sdk
-      .table('bookings_c')
-      .select([{ field: 'Id' }])
-      .aggregate([
-        { id: 'week', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where: relativeMatch('CreatedOn', 'this week') },
-        { id: 'collected', fields: [{ field: 'amountPaid_c', fn: 'Sum', alias: 'count' }], where: isIn('paymentStatus_c', ['Paid', 'Refunded']) },
-        { id: 'refunded', fields: [{ field: 'refundDue_c', fn: 'Sum', alias: 'count' }], where: eq('refundStatus_c', 'Paid') },
-        { id: 'due', fields: [{ field: 'refundDue_c', fn: 'Sum', alias: 'count' }], where: eq('refundStatus_c', 'Due') },
-        { id: 'dueCount', fields: [{ field: 'Id', fn: 'Count', alias: 'count' }], where: eq('refundStatus_c', 'Due') },
-      ])
-      .limit(1)
-      .fetch();
-    if (!b.success) throw new Error(b.message);
-    // Our commission is a cut of the money actually kept: each paid booking, less what was refunded, at its deal's rate.
-    const paid = await sdk
-      .table('bookings_c')
-      .select(['amountPaid_c', 'refundDue_c', 'refundStatus_c', 'deal_c'])
-      .where(eq('paymentStatus_c', 'Paid'))
-      .page(1, 5000)
-      .fetch();
-    const dealIds = [...new Set((paid.data ?? []).map((x) => x.deal_c?.Id).filter(Boolean))];
-    const rates = {};
-    if (dealIds.length) {
-      const dr = await sdk.table('deals_c').select(['commission_c']).where(isIn('Id', dealIds)).page(1, dealIds.length).fetch();
-      for (const d of dr.data ?? []) rates[d.Id] = Number(d.commission_c || 0) / 100;
-    }
-    const commission = (paid.data ?? []).reduce((sum, x) => {
-      const kept = Number(x.amountPaid_c || 0) - (x.refundStatus_c === 'Paid' ? Number(x.refundDue_c || 0) : 0);
-      return sum + Math.max(0, kept) * (rates[x.deal_c?.Id] ?? 0);
-    }, 0);
+    const r = await sdk.adminStats();
+    if (!r.ok) throw new Error(r.error.message);
+    const v = r.value?.data ?? r.value;
     return {
-      commission: Math.round(commission),
-      live: pick(d, 'live'),
-      draft: pick(d, 'draft'),
-      week: pick(b, 'week'),
-      collected: Math.max(0, Number(pick(b, 'collected')) - Number(pick(b, 'refunded'))),
-      due: pick(b, 'due'),
-      dueCount: pick(b, 'dueCount'),
+      ...v,
+      due: v.refundsDue,
+      dueCount: v.refundsDueCount,
     };
   }, []);
 
@@ -189,15 +149,23 @@ export default function Dashboard() {
   if (attention?.proposals) {
     tasks.push({ key: 'proposals', to: '/proposals', lead: String(attention.proposals), tone: 'calm', title: attention.proposals === 1 ? 'New proposal' : 'New proposals', note: 'Deals ambassadors are asking for' });
   }
-  if (attention?.payouts) {
-    tasks.push({ key: 'payouts', to: '/payouts', lead: inr(attention.payouts), tone: 'money', title: 'Vendor payouts pending', note: 'Pay once the jobs are done' });
+  (kpi?.payoutsToSetUp ?? []).forEach((p) => {
+    tasks.push({ key: `setup-${p.dealId}`, to: `/admin/deals/${p.dealId}`, lead: inr(p.amount), tone: 'money', title: `Set up the vendor payout: ${p.deal}`, note: 'The deal went ahead. Record what the vendor is owed' });
+  });
+  if (kpi?.payoutsPending) {
+    tasks.push({ key: 'payouts', to: '/payouts', lead: inr(kpi.payoutsPending), tone: 'money', title: 'Vendor payouts pending', note: 'Pay once the jobs are done' });
   }
 
   const summary = [
-    { label: 'Live deals', value: kpi?.live ?? 0, sub: `${kpi?.draft ?? 0} in draft` },
-    { label: 'Bookings this week', value: kpi?.week ?? 0, sub: 'Since Monday' },
-    { label: 'Collected', value: inr(kpi?.collected ?? 0), sub: `${inr(kpi?.commission ?? 0)} is our commission, after refunds` },
-    { label: 'Refunds due', value: inr(kpi?.due ?? 0), sub: kpi?.dueCount ? `${kpi.dueCount} to send` : 'All sent' },
+    { label: 'Live deals', value: kpi?.live ?? 0, sub: kpi?.preparing ? `${kpi.preparing} being prepared` : 'None being prepared' },
+    { label: 'Bookings this week', value: kpi?.week ?? 0, sub: 'Paid, since Monday' },
+    {
+      label: 'Collected',
+      value: inr(kpi?.kept ?? 0),
+      sub: kpi?.onOpenDeals ? `${inr(kpi.onOpenDeals)} on deals still open` : `After ${inr(kpi?.refunded ?? 0)} refunded`,
+      title: `${inr(kpi?.paidIn ?? 0)} paid in, ${inr(kpi?.refunded ?? 0)} refunded. Money on open deals can still go back if a deal fails or its price drops.`,
+    },
+    { label: 'Commission earned', value: inr(kpi?.commissionEarned ?? 0), sub: 'From deals that went ahead', title: 'Each confirmed booking at its final price, at its deal\'s commission rate.' },
   ];
 
   const leadTone = {
@@ -233,12 +201,12 @@ export default function Dashboard() {
       ) : (
         <dl className="grid grid-cols-2 overflow-hidden rounded-[22px] bg-card shadow-sm sm:grid-cols-4">
           {summary.map((s, i) => (
-            <div key={s.label} className={cn('min-w-0 px-5 py-5', i % 2 === 1 && 'border-l border-border', i >= 2 && 'border-t border-border sm:border-t-0', i === 2 && 'sm:border-l')}>
+            <div key={s.label} title={s.title} className={cn('min-w-0 px-5 py-5', i % 2 === 1 && 'border-l border-border', i >= 2 && 'border-t border-border sm:border-t-0', i === 2 && 'sm:border-l')}>
               <dt className="truncate text-sm text-muted-foreground">{s.label}</dt>
               <dd className="mt-1 font-heading text-[1.75rem] font-bold leading-tight tabular-nums text-foreground">
                 {kpi ? s.value : <Skeleton className="h-8 w-20" />}
               </dd>
-              {kpi && <dd className="mt-0.5 truncate text-[13px] text-muted-foreground">{s.sub}</dd>}
+              {kpi && <dd className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{s.sub}</dd>}
             </div>
           ))}
         </dl>

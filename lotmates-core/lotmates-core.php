@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LM_VERSION', '0.7.1');
+define('LM_VERSION', '0.7.2');
 define('LM_DIR', plugin_dir_path(__FILE__));
 // Public site the API serves. Change here if the front end moves.
 define('LM_SITE_URL', 'https://lotmates.in');
@@ -24,6 +24,7 @@ require_once LM_DIR . 'includes/query.php';
 require_once LM_DIR . 'includes/seed.php';
 require_once LM_DIR . 'includes/categories.php';
 require_once LM_DIR . 'includes/schedule.php';
+require_once LM_DIR . 'includes/stats.php';
 require_once LM_DIR . 'includes/payments.php';
 require_once LM_DIR . 'includes/account.php';
 require_once LM_DIR . 'includes/media.php';
@@ -75,6 +76,13 @@ function lm_migrate()
     $wpdb->query('UPDATE ' . lm_table('deals_c') . " SET allowRepeat_c = IF(category_c IN ('Health','AC','Products'), 1, 0) WHERE allowRepeat_c IS NULL");
     // Delivery and scheduling: write each category's usual way onto existing deals.
     lm_categories_seed();
+    // Booked counts follow real bookings. Once: drop the hand-seeded demo counts and the tiers they unlocked.
+    if (!get_option('lm_recount_v1')) {
+        lm_recount_all_deals(true);
+        update_option('lm_recount_v1', 1);
+    } else {
+        lm_recount_all_deals(false);
+    }
     foreach (lm_categories() as $cat => $def) {
         [$fulfilment, $schedule] = [$def['fulfilment'], $def['schedule']];
         $wpdb->query($wpdb->prepare('UPDATE ' . lm_table('deals_c') . ' SET fulfilment_c = %s WHERE fulfilment_c IS NULL AND category_c = %s', $fulfilment, $cat));
@@ -88,6 +96,7 @@ add_action('rest_api_init', function () {
     lm_register_fn_routes();
     lm_register_account_routes();
     lm_register_category_routes();
+    lm_register_stats_routes();
     lm_register_media_routes();
     lm_register_invoice_routes();
     lm_register_og_routes();
